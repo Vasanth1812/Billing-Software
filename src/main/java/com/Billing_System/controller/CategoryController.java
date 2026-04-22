@@ -16,7 +16,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/categories")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+
 public class CategoryController {
 
     private final CategoryService categoryService;
@@ -55,7 +55,7 @@ public class CategoryController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Category> updateCategory(@PathVariable UUID id,
-                                                    @Valid @RequestBody CategoryDTO dto) {
+            @Valid @RequestBody CategoryDTO dto) {
         return ResponseEntity.ok(categoryService.updateCategory(id, dto));
     }
 
