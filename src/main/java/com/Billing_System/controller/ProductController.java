@@ -16,7 +16,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
-
+@CrossOrigin(origins = "*")
 public class ProductController {
 
     private final ProductService productService;
@@ -73,7 +73,7 @@ public class ProductController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProduct(@PathVariable UUID id,
-            @Valid @RequestBody ProductDTO dto) {
+                                                  @Valid @RequestBody ProductDTO dto) {
         return ResponseEntity.ok(productService.updateProduct(id, dto));
     }
 

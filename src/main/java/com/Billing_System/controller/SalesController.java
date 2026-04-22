@@ -1,7 +1,5 @@
 package com.Billing_System.controller;
 
-import com.Billing_System.dto.BulkSaleRequestDTO;
-import com.Billing_System.dto.BulkSaleResponseDTO;
 import com.Billing_System.dto.SaleRequestDTO;
 import com.Billing_System.dto.SalesInvoiceResponseDTO;
 import com.Billing_System.entity.SalesInvoice;
@@ -20,7 +18,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/sales")
 @RequiredArgsConstructor
-
+@CrossOrigin(origins = "*")
 public class SalesController {
 
     private final SalesService salesService;
@@ -71,28 +69,5 @@ public class SalesController {
     public ResponseEntity<SalesInvoice> saveSale(@Valid @RequestBody SaleRequestDTO dto) {
         SalesInvoice saved = salesService.saveSale(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
-    }
-
-    /**
-     * POST /api/sales/bulk
-     *
-     * Offline sync endpoint — frontend sends all bills stored in localStorage.
-     * Each bill is processed independently:
-     * - Succeeded bills get an invoice number
-     * - Failed bills get an error message
-     * Frontend uses localId to match and clear from localStorage.
-     *
-     * Example request:
-     * {
-     * "sales": [
-     * { "localId": "offline-bill-1", "sale": { ...normal SaleRequestDTO... } },
-     * { "localId": "offline-bill-2", "sale": { ...normal SaleRequestDTO... } }
-     * ]
-     * }
-     */
-    @PostMapping("/bulk")
-    public ResponseEntity<BulkSaleResponseDTO> bulkSale(@Valid @RequestBody BulkSaleRequestDTO dto) {
-        BulkSaleResponseDTO result = salesService.processBulkSale(dto);
-        return ResponseEntity.ok(result);
     }
 }

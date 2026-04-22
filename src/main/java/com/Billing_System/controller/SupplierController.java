@@ -16,7 +16,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/suppliers")
 @RequiredArgsConstructor
-
+@CrossOrigin(origins = "*")
 public class SupplierController {
 
     private final SupplierService supplierService;
@@ -55,7 +55,7 @@ public class SupplierController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Supplier> updateSupplier(@PathVariable UUID id,
-            @Valid @RequestBody SupplierDTO dto) {
+                                                    @Valid @RequestBody SupplierDTO dto) {
         return ResponseEntity.ok(supplierService.updateSupplier(id, dto));
     }
 

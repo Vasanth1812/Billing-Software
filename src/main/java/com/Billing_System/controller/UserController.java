@@ -16,7 +16,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-
+@CrossOrigin(origins = "*")
 public class UserController {
 
     private final UserService userService;
@@ -55,7 +55,7 @@ public class UserController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable UUID id,
-            @Valid @RequestBody UserDTO dto) {
+                                            @Valid @RequestBody UserDTO dto) {
         return ResponseEntity.ok(userService.updateUser(id, dto));
     }
 

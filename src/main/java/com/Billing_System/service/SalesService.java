@@ -1,7 +1,5 @@
 package com.Billing_System.service;
 
-import com.Billing_System.dto.BulkSaleRequestDTO;
-import com.Billing_System.dto.BulkSaleResponseDTO;
 import com.Billing_System.dto.SaleRequestDTO;
 import com.Billing_System.dto.SalesInvoiceResponseDTO;
 import com.Billing_System.entity.*;
@@ -9,7 +7,6 @@ import com.Billing_System.repository.*;
 import com.Billing_System.util.InvoiceNumberGenerator;
 import com.Billing_System.util.TaxCalculator;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +22,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-@Slf4j
 public class SalesService {
 
     private final SalesInvoiceRepository salesInvoiceRepository;
@@ -236,52 +232,5 @@ public class SalesService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Process bulk offline sales from frontend localStorage sync.
-     *
-     * DESIGN DECISION — Each sale is processed independently:
-     * If 5 bills are sent and bill #3 fails (e.g. stock issue),
-     * bills #1, #2, #4, #5 still succeed. Only #3 is marked FAILED.
-     * The frontend uses localId to match which bills to remove from localStorage.
-     *
-     * This is NOT wrapped in one big @Transactional on purpose —
-     * each saveSale() call has its own transaction so one failure
-     * doesn't roll back all the others.
-     */
-    public BulkSaleResponseDTO processBulkSale(BulkSaleRequestDTO request) {
-        List<BulkSaleResponseDTO.SaleResultDTO> results = new ArrayList<>();
-        int successCount = 0;
-        int failCount = 0;
 
-        for (BulkSaleRequestDTO.OfflineSaleDTO offlineSale : request.getSales()) {
-            String localId = offlineSale.getLocalId();
-            try {
-                SalesInvoice saved = saveSale(offlineSale.getSale());
-                results.add(BulkSaleResponseDTO.SaleResultDTO.builder()
-                        .localId(localId)
-                        .status("SUCCESS")
-                        .invoiceNumber(saved.getInvoiceNumber())
-                        .errorMessage(null)
-                        .build());
-                successCount++;
-                log.info("Bulk sale SUCCESS: localId={}, invoiceNumber={}", localId, saved.getInvoiceNumber());
-            } catch (Exception e) {
-                results.add(BulkSaleResponseDTO.SaleResultDTO.builder()
-                        .localId(localId)
-                        .status("FAILED")
-                        .invoiceNumber(null)
-                        .errorMessage(e.getMessage())
-                        .build());
-                failCount++;
-                log.warn("Bulk sale FAILED: localId={}, reason={}", localId, e.getMessage());
-            }
-        }
-
-        return BulkSaleResponseDTO.builder()
-                .totalReceived(request.getSales().size())
-                .totalSuccess(successCount)
-                .totalFailed(failCount)
-                .results(results)
-                .build();
-    }
 }

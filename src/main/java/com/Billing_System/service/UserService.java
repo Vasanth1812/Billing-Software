@@ -4,7 +4,6 @@ import com.Billing_System.dto.UserDTO;
 import com.Billing_System.entity.User;
 import com.Billing_System.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +16,6 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     /** Get all active users */
     @Transactional(readOnly = true)
@@ -32,20 +30,15 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + id));
     }
 
-    /** Create a new user (admin creates accounts, no self-registration) */
+    /** Create a new user */
     public User createUser(UserDTO dto) {
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new IllegalArgumentException("User with email '" + dto.getEmail() + "' already exists");
         }
-        if (userRepository.existsByUserId(dto.getUserId())) {
-            throw new IllegalArgumentException("User with user ID '" + dto.getUserId() + "' already exists");
-        }
-
         User user = User.builder()
-                .userId(dto.getUserId())
                 .name(dto.getName())
                 .email(dto.getEmail())
-                .password(passwordEncoder.encode(dto.getPassword()))   // BCrypt hashed!
+                .password(dto.getPassword()) // NOTE: In production, hash passwords with bcrypt
                 .role(dto.getRole())
                 .build();
         return userRepository.save(user);
@@ -60,17 +53,11 @@ public class UserService {
             throw new IllegalArgumentException("Email '" + dto.getEmail() + "' is already taken");
         }
 
-        // Allow userId update only if not taken by another user
-        if (!user.getUserId().equals(dto.getUserId()) && userRepository.existsByUserId(dto.getUserId())) {
-            throw new IllegalArgumentException("User ID '" + dto.getUserId() + "' is already taken");
-        }
-
-        user.setUserId(dto.getUserId());
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
         user.setRole(dto.getRole());
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(dto.getPassword()));  // BCrypt hashed!
+            user.setPassword(dto.getPassword()); // NOTE: hash in production
         }
         return userRepository.save(user);
     }
