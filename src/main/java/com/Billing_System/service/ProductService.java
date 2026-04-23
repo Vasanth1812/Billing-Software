@@ -33,6 +33,17 @@ public class ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + id));
     }
 
+    /**
+     * Barcode scan lookup – exact SKU match, returns single product.
+     * Used by POS screen when cashier scans a barcode.
+     * Returns 404 immediately if SKU not found or product inactive.
+     */
+    @Transactional(readOnly = true)
+    public Product getProductBySku(String sku) {
+        return productRepository.findBySkuWithCategory(sku)
+                .orElseThrow(() -> new IllegalArgumentException("No active product found with barcode/SKU: " + sku));
+    }
+
     /** Search products by name or SKU */
     @Transactional(readOnly = true)
     public List<Product> searchProducts(String query) {

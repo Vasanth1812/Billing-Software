@@ -47,5 +47,9 @@ public class PurchaseRequestDTO {
         @DecimalMin(value = "0.0", message = "GST rate cannot be negative")
         @DecimalMax(value = "100.0", message = "GST rate cannot exceed 100%")
         private BigDecimal gstRate;
+
+        @DecimalMin(value = "0.0", message = "Discount cannot be negative")
+        @DecimalMax(value = "100.0", message = "Discount cannot exceed 100%")
+        private BigDecimal discountPct;   // e.g. 5.0 = 5% discount off purchase rate
     }
 }

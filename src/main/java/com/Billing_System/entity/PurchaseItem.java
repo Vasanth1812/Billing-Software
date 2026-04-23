@@ -35,6 +35,10 @@ public class PurchaseItem {
     @Column(name = "purchase_rate", nullable = false, precision = 10, scale = 2)
     private BigDecimal purchaseRate;
 
+    @Builder.Default
+    @Column(name = "discount_pct", precision = 5, scale = 2)
+    private BigDecimal discountPct = BigDecimal.ZERO;   // e.g. 5.00 = 5% discount
+
     @Column(name = "gst_rate", precision = 5, scale = 2)
     private BigDecimal gstRate;
 

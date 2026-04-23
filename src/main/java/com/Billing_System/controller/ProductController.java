@@ -40,6 +40,21 @@ public class ProductController {
     }
 
     /**
+     * GET /api/products/barcode/{sku}
+     *
+     * POS barcode scan endpoint — exact SKU match, returns ONE product instantly.
+     * Used when cashier scans a barcode → product auto-added to current order.
+     *
+     * Example: GET /api/products/barcode/8901030844208
+     *   → 200 OK with product details (name, mrp, gstRate, currentStock)
+     *   → 404 if barcode not found / product inactive
+     */
+    @GetMapping("/barcode/{sku}")
+    public ResponseEntity<Product> getProductByBarcode(@PathVariable String sku) {
+        return ResponseEntity.ok(productService.getProductBySku(sku));
+    }
+
+    /**
      * GET /api/products/low-stock
      * Get all products below minimum stock level
      */

@@ -84,8 +84,11 @@ public class PurchaseService {
             if (gstRate == null)
                 gstRate = BigDecimal.ZERO;
 
+            BigDecimal discountPct = itemDto.getDiscountPct() != null
+                    ? itemDto.getDiscountPct() : BigDecimal.ZERO;
+
             TaxCalculator.TaxResult tax = taxCalculator.calculate(
-                    itemDto.getQuantity(), itemDto.getPurchaseRate(), gstRate, BigDecimal.ZERO);
+                    itemDto.getQuantity(), itemDto.getPurchaseRate(), gstRate, discountPct);
 
             totalAmount = totalAmount.add(tax.taxableAmount());
             totalTax = totalTax.add(tax.gstAmount());
@@ -94,6 +97,7 @@ public class PurchaseService {
                     .product(product)
                     .quantity(itemDto.getQuantity())
                     .purchaseRate(itemDto.getPurchaseRate())
+                    .discountPct(discountPct)
                     .gstRate(gstRate)
                     .taxAmount(tax.gstAmount())
                     .totalAmount(tax.lineTotal())

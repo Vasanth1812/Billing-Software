@@ -31,6 +31,13 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     Optional<Product> findBySku(String sku);
 
+    /**
+     * Exact barcode/SKU lookup – JOIN FETCH category, returns single product.
+     * Used for POS barcode scan: fast exact match, not LIKE search.
+     */
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.sku = :sku AND p.isActive = true")
+    Optional<Product> findBySkuWithCategory(@Param("sku") String sku);
+
     boolean existsBySku(String sku);
 
     /**
