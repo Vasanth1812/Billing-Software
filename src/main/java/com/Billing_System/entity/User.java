@@ -24,6 +24,9 @@ public class User {
     @Column(name = "email", nullable = false, unique = true, length = 100)
     private String email;
 
+    @Column(name = "user_id", nullable = false, unique = true, length = 50)
+    private String userId;
+
     @Column(name = "password", nullable = false)
     private String password;
 
@@ -37,6 +40,12 @@ public class User {
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expiry")
+    private LocalDateTime resetTokenExpiry;
 
     @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)

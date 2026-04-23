@@ -16,6 +16,7 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     /** Get all active users */
     @Transactional(readOnly = true)
@@ -35,10 +36,15 @@ public class UserService {
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new IllegalArgumentException("User with email '" + dto.getEmail() + "' already exists");
         }
+        if (userRepository.existsByUserId(dto.getUserId())) {
+            throw new IllegalArgumentException("User with ID '" + dto.getUserId() + "' already exists");
+        }
+
         User user = User.builder()
                 .name(dto.getName())
                 .email(dto.getEmail())
-                .password(dto.getPassword()) // NOTE: In production, hash passwords with bcrypt
+                .userId(dto.getUserId())
+                .password(passwordEncoder.encode(dto.getPassword()))
                 .role(dto.getRole())
                 .build();
         return userRepository.save(user);
@@ -53,11 +59,17 @@ public class UserService {
             throw new IllegalArgumentException("Email '" + dto.getEmail() + "' is already taken");
         }
 
+        // Allow userId update only if not taken by another user
+        if (!user.getUserId().equals(dto.getUserId()) && userRepository.existsByUserId(dto.getUserId())) {
+            throw new IllegalArgumentException("User ID '" + dto.getUserId() + "' is already taken");
+        }
+
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
+        user.setUserId(dto.getUserId());
         user.setRole(dto.getRole());
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
-            user.setPassword(dto.getPassword()); // NOTE: hash in production
+            user.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
         return userRepository.save(user);
     }

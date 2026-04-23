@@ -11,10 +11,6 @@ import org.springframework.stereotype.Component;
 /**
  * Runs on application startup.
  * Creates a default ADMIN user if no users exist in the database.
- * This solves the chicken-and-egg problem:
- *   - Can't login without a user
- *   - Can't create a user without logging in (JWT required)
- *   - So we auto-create the first admin on startup
  */
 @Component
 @RequiredArgsConstructor
@@ -26,11 +22,12 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        // Seed Admin User
         if (userRepository.count() == 0) {
             User admin = User.builder()
                     .userId("ADMIN")
                     .name("System Admin")
-                    .email("admin@billing.com")
+                    .email("sriniwebdesigner1998@gmail.com")
                     .password(passwordEncoder.encode("admin123"))
                     .role("ADMIN")
                     .build();
@@ -38,7 +35,7 @@ public class DataSeeder implements CommandLineRunner {
             log.info("═══════════════════════════════════════════════");
             log.info("  DEFAULT ADMIN CREATED");
             log.info("  User ID  : ADMIN");
-            log.info("  Email    : admin@billing.com");
+            log.info("  Email    : sriniwebdesigner1998@gmail.com");
             log.info("  Password : admin123");
             log.info("  ⚠️  CHANGE THIS PASSWORD AFTER FIRST LOGIN!");
             log.info("═══════════════════════════════════════════════");

@@ -32,12 +32,17 @@ public class CategoryService {
 
     /** Create a new category */
     public Category createCategory(CategoryDTO dto) {
+        System.out.println("Creating Category: " + dto.getName() + " | Price: " + dto.getSellingPrice() + " | GST: "
+                + dto.getGstRate());
+
         if (categoryRepository.existsByName(dto.getName())) {
             throw new IllegalArgumentException("Category with name '" + dto.getName() + "' already exists");
         }
         Category category = Category.builder()
                 .name(dto.getName())
                 .description(dto.getDescription())
+                .sellingPrice(dto.getSellingPrice())
+                .gstRate(dto.getGstRate())
                 .build();
         return categoryRepository.save(category);
     }
@@ -47,6 +52,8 @@ public class CategoryService {
         Category category = getCategoryById(id);
         category.setName(dto.getName());
         category.setDescription(dto.getDescription());
+        category.setSellingPrice(dto.getSellingPrice());
+        category.setGstRate(dto.getGstRate());
         return categoryRepository.save(category);
     }
 

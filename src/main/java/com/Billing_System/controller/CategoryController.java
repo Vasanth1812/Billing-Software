@@ -45,6 +45,7 @@ public class CategoryController {
      */
     @PostMapping
     public ResponseEntity<Category> createCategory(@Valid @RequestBody CategoryDTO dto) {
+        System.out.println("Controller received DTO: " + dto.getName() + ", Price: " + dto.getSellingPrice());
         Category created = categoryService.createCategory(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -55,7 +56,7 @@ public class CategoryController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Category> updateCategory(@PathVariable UUID id,
-                                                    @Valid @RequestBody CategoryDTO dto) {
+            @Valid @RequestBody CategoryDTO dto) {
         return ResponseEntity.ok(categoryService.updateCategory(id, dto));
     }
 
