@@ -69,4 +69,16 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
        @Query("SELECT p FROM Product p WHERE p.currentStock <= :threshold")
        List<Product> findProductsBelowStock(@Param("threshold") BigDecimal threshold);
+
+       @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true")
+       long countActiveProducts();
+
+       @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.currentStock <= p.minStock AND p.currentStock > 0")
+       long countLowStockProducts();
+
+       @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.currentStock <= 0")
+       long countOutOfStockProducts();
+
+       @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.isActive = true AND p.currentStock <= 0")
+       List<Product> findOutOfStockProducts();
 }

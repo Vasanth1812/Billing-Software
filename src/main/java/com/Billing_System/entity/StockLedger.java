@@ -49,4 +49,7 @@ public class StockLedger {
     @Builder.Default
     @Column(name = "transaction_date", nullable = false)
     private LocalDateTime transactionDate = LocalDateTime.now();
+
+    @Column(name = "reason")
+    private String reason;
 }

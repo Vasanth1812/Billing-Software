@@ -744,6 +744,106 @@
             ]
         },
         {
+            "name": "Inventory",
+            "item": [
+                {
+                    "name": "Get Inventory Summary",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/inventory/summary",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "inventory",
+                                "summary"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Inventory Products",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/inventory/products?status=ALL",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "inventory",
+                                "products"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "ALL",
+                                    "description": "ALL, LOW, or OUT"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Adjust Stock",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"productId\": \"550e8400-e29b-41d4-a716-446655440001\",\n    \"quantity\": 5.0,\n    \"direction\": \"+\",\n    \"reason\": \"Inventory audit corrections\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/inventory/adjust",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "inventory",
+                                "adjust"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Stock History",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/inventory/history/:productId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "inventory",
+                                "history",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "550e8400-e29b-41d4-a716-446655440001"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
             "name": "Users",
             "item": [
                 {
