@@ -44,6 +44,12 @@ public class Product {
     @Column(name = "hsn_code", length = 20)
     private String hsnCode;
 
+    @Column(name = "barcode", length = 50)
+    private String barcode;
+
+    @Column(name = "description", length = 500)
+    private String description;
+
     @Builder.Default
     @Column(name = "current_stock", precision = 10, scale = 3)
     private BigDecimal currentStock = BigDecimal.ZERO;

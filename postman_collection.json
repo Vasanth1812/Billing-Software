@@ -1,8 +1,8 @@
 {
     "info": {
-        "_postman_id": "b7e31-c121-4181-a79a-debaf4ec4e0d",
+        "_postman_id": "b7custom-0000-4181-a79a-debaf4ec4e0d",
         "name": "Billing System API",
-        "description": "API collection for the Retail Billing System Backend",
+        "description": "Comprehensive API collection for the Retail Billing System Backend",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -34,8 +34,7 @@
                                 "login"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Forgot Password",
@@ -62,8 +61,7 @@
                                 "forgot-password"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Reset Password",
@@ -90,8 +88,7 @@
                                 "reset-password"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 }
             ]
         },
@@ -113,37 +110,7 @@
                                 "categories"
                             ]
                         }
-                    },
-                    "response": [
-                        {
-                            "name": "Success Response",
-                            "originalRequest": {
-                                "method": "GET",
-                                "header": [],
-                                "url": {
-                                    "raw": "{{baseUrl}}/api/categories",
-                                    "host": [
-                                        "{{baseUrl}}"
-                                    ],
-                                    "path": [
-                                        "api",
-                                        "categories"
-                                    ]
-                                }
-                            },
-                            "status": "OK",
-                            "code": 200,
-                            "_postman_previewlanguage": "json",
-                            "header": [
-                                {
-                                    "key": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "cookie": [],
-                            "body": "[\n    {\n        \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n        \"name\": \"Aaata\",\n        \"description\": \"Quick added item\",\n        \"selling_price\": 100.00,\n        \"gst_rate\": 5.0,\n        \"isActive\": true,\n        \"createdAt\": \"2026-04-23T14:42:21\"\n    }\n]"
-                        }
-                    ]
+                    }
                 },
                 {
                     "name": "Get Category By ID",
@@ -163,12 +130,11 @@
                             "variable": [
                                 {
                                     "key": "id",
-                                    "value": ""
+                                    "value": "550e8400-e29b-41d4-a716-446655440000"
                                 }
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Create Category",
@@ -194,8 +160,7 @@
                                 "categories"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Update Category",
@@ -224,12 +189,11 @@
                             "variable": [
                                 {
                                     "key": "id",
-                                    "value": ""
+                                    "value": "550e8400-e29b-41d4-a716-446655440000"
                                 }
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Delete Category",
@@ -249,12 +213,11 @@
                             "variable": [
                                 {
                                     "key": "id",
-                                    "value": ""
+                                    "value": "550e8400-e29b-41d4-a716-446655440000"
                                 }
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 }
             ]
         },
@@ -276,8 +239,7 @@
                                 "products"
                             ]
                         }
-                    },
-                    "response": []
+                    }
                 },
                 {
                     "name": "Search Products",
@@ -301,8 +263,32 @@
                                 }
                             ]
                         }
-                    },
-                    "response": []
+                    }
+                },
+                {
+                    "name": "Get Product By Barcode (SKU)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/barcode/:sku",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                "barcode",
+                                ":sku"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "sku",
+                                    "value": "8901030844208"
+                                }
+                            ]
+                        }
+                    }
                 },
                 {
                     "name": "Low Stock Products",
@@ -320,8 +306,315 @@
                                 "low-stock"
                             ]
                         }
-                    },
-                    "response": []
+                    }
+                },
+                {
+                    "name": "Get Product By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440001"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Product",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Samsung Galaxy S23\",\n    \"sku\": \"SAMSUNG-S23-128\",\n    \"categoryId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"unit\": \"PCS\",\n    \"purchaseRate\": 60000.00,\n    \"mrp\": 74999.00,\n    \"gstRate\": 18.0,\n    \"hsnCode\": \"8517\",\n    \"minStock\": 5.0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Product",
+                    "request": {
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Samsung Galaxy S23 Ultra\",\n    \"sku\": \"SAMSUNG-S23-ULTRA\",\n    \"categoryId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"unit\": \"PCS\",\n    \"purchaseRate\": 90000.00,\n    \"mrp\": 124999.00,\n    \"gstRate\": 28.0,\n    \"hsnCode\": \"8517\",\n    \"minStock\": 2.0\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440001"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Product",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440001"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Suppliers",
+            "item": [
+                {
+                    "name": "Get All Suppliers",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/suppliers",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "suppliers"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Supplier By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/suppliers/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "suppliers",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440002"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Supplier",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Global Electronics Corp\",\n    \"contactPerson\": \"Sarah Connor\",\n    \"phone\": \"9876543210\",\n    \"email\": \"sales@globalelectronics.com\",\n    \"gstin\": \"27AAAAA0000A1Z5\",\n    \"address\": \"Industrial Area, Pune\",\n    \"creditDays\": 30\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/suppliers",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "suppliers"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Supplier",
+                    "request": {
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Global Electronics Corp Ltd\",\n    \"contactPerson\": \"Sarah Connor\",\n    \"phone\": \"9876543211\",\n    \"email\": \"info@globalelectronics.com\",\n    \"gstin\": \"27AAAAA0000A1Z5\",\n    \"address\": \"Updated Industrial Area, Pune\",\n    \"creditDays\": 45\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/suppliers/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "suppliers",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440002"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Supplier",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/suppliers/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "suppliers",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440002"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Purchases",
+            "item": [
+                {
+                    "name": "Get All Purchases",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/purchases",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "purchases"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Purchase By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/purchases/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "purchases",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440003"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Purchase",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"supplierId\": \"550e8400-e29b-41d4-a716-446655440002\",\n    \"invoiceNumber\": \"PUR-2026-001\",\n    \"invoiceDate\": \"2026-04-24\",\n    \"paymentMode\": \"BANK_TRANSFER\",\n    \"dueDate\": \"2026-05-24\",\n    \"status\": \"COMPLETED\",\n    \"items\": [\n        {\n            \"productId\": \"550e8400-e29b-41d4-a716-446655440001\",\n            \"quantity\": 10,\n            \"purchaseRate\": 60000.00,\n            \"gstRate\": 18.0,\n            \"discountPct\": 5.0\n        }\n    ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/purchases",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "purchases"
+                            ]
+                        }
+                    }
                 }
             ]
         },
@@ -343,8 +636,56 @@
                                 "sales"
                             ]
                         }
-                    },
-                    "response": []
+                    }
+                },
+                {
+                    "name": "Get Sale By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/sales/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440004"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Print Sale Invoice",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/sales/:id/print",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                ":id",
+                                "print"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440004"
+                                }
+                            ]
+                        }
+                    }
                 },
                 {
                     "name": "Create Sale",
@@ -353,7 +694,7 @@
                         "header": [],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"customerId\": \"...\",\n    \"items\": [\n        {\n            \"productId\": \"...\",\n            \"quantity\": 1,\n            \"unitPrice\": 100\n        }\n    ],\n    \"paymentMethod\": \"CASH\"\n}",
+                            "raw": "{\n    \"customerName\": \"John Doe\",\n    \"customerPhone\": \"9988776655\",\n    \"customerGstin\": \"\",\n    \"invoiceDate\": \"2026-04-24\",\n    \"paymentMode\": \"CASH\",\n    \"status\": \"COMPLETED\",\n    \"items\": [\n        {\n            \"productId\": \"550e8400-e29b-41d4-a716-446655440001\",\n            \"quantity\": 1,\n            \"mrp\": 74999.00,\n            \"discountPct\": 10.0\n        }\n    ]\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -370,8 +711,164 @@
                                 "sales"
                             ]
                         }
-                    },
-                    "response": []
+                    }
+                },
+                {
+                    "name": "Get Sales By Date Range",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/sales/by-date?from=2026-04-01&to=2026-04-30",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                "by-date"
+                            ],
+                            "query": [
+                                {
+                                    "key": "from",
+                                    "value": "2026-04-01"
+                                },
+                                {
+                                    "key": "to",
+                                    "value": "2026-04-30"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Users",
+            "item": [
+                {
+                    "name": "Get All Users",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get User By ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440005"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create User",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Jane Smith\",\n    \"email\": \"jane@shop.com\",\n    \"userId\": \"jane_admin\",\n    \"password\": \"pass456\",\n    \"role\": \"ADMIN\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update User",
+                    "request": {
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"Jane Smith Updated\",\n    \"email\": \"jane.updated@shop.com\",\n    \"userId\": \"jane_admin\",\n    \"password\": \"newpass456\",\n    \"role\": \"MANAGER\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440005"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/users/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "users",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440005"
+                                }
+                            ]
+                        }
+                    }
                 }
             ]
         }

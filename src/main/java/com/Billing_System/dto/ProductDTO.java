@@ -35,6 +35,15 @@ public class ProductDTO {
     @Size(max = 20, message = "HSN code must not exceed 20 characters")
     private String hsnCode;
 
+    private String barcode;
+
+    private String description;
+
+    @DecimalMin(value = "0.0", message = "Stock cannot be negative")
+    private BigDecimal stock;
+
     @DecimalMin(value = "0.0", message = "Minimum stock cannot be negative")
     private BigDecimal minStock;
+
+    private Boolean isActive;
 }

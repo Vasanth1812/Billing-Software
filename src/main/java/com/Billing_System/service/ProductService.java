@@ -23,7 +23,7 @@ public class ProductService {
     /** List all active products */
     @Transactional(readOnly = true)
     public List<Product> getAllProducts() {
-        return productRepository.findByIsActiveTrue();
+        return productRepository.findAllWithCategory();
     }
 
     /** Get a single product by ID – JOIN FETCH category, no extra query */
@@ -77,14 +77,20 @@ public class ProductService {
                 .mrp(dto.getMrp())
                 .gstRate(dto.getGstRate())
                 .hsnCode(dto.getHsnCode())
+                .barcode(dto.getBarcode())
+                .description(dto.getDescription())
                 .minStock(dto.getMinStock())
-                // currentStock initialised to 0 – document spec
+                .currentStock(dto.getStock() != null ? dto.getStock() : java.math.BigDecimal.ZERO)
+                .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();
 
         return productRepository.save(product);
     }
 
-    /** Update product details (does NOT touch currentStock – that goes through purchases/sales) */
+    /**
+     * Update product details (does NOT touch currentStock – that goes through
+     * purchases/sales)
+     */
     public Product updateProduct(UUID id, ProductDTO dto) {
         Product product = getProductById(id);
 
@@ -107,7 +113,16 @@ public class ProductService {
         product.setMrp(dto.getMrp());
         product.setGstRate(dto.getGstRate());
         product.setHsnCode(dto.getHsnCode());
+        product.setBarcode(dto.getBarcode());
+        product.setDescription(dto.getDescription());
         product.setMinStock(dto.getMinStock());
+
+        if (dto.getStock() != null) {
+            product.setCurrentStock(dto.getStock());
+        }
+        if (dto.getIsActive() != null) {
+            product.setIsActive(dto.getIsActive());
+        }
 
         return productRepository.save(product);
     }

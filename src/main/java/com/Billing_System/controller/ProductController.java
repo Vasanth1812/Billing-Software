@@ -23,7 +23,7 @@ public class ProductController {
 
     /**
      * GET /api/products
-     * List all active products with current stock
+     * List all products with current stock
      */
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts() {
@@ -46,8 +46,8 @@ public class ProductController {
      * Used when cashier scans a barcode → product auto-added to current order.
      *
      * Example: GET /api/products/barcode/8901030844208
-     *   → 200 OK with product details (name, mrp, gstRate, currentStock)
-     *   → 404 if barcode not found / product inactive
+     * → 200 OK with product details (name, mrp, gstRate, currentStock)
+     * → 404 if barcode not found / product inactive
      */
     @GetMapping("/barcode/{sku}")
     public ResponseEntity<Product> getProductByBarcode(@PathVariable String sku) {
@@ -88,7 +88,7 @@ public class ProductController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProduct(@PathVariable UUID id,
-                                                  @Valid @RequestBody ProductDTO dto) {
+            @Valid @RequestBody ProductDTO dto) {
         return ResponseEntity.ok(productService.updateProduct(id, dto));
     }
 
