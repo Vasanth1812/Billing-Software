@@ -25,12 +25,53 @@ public class PurchaseService {
     private final ProductRepository productRepository;
     private final SupplierRepository supplierRepository;
     private final StockLedgerRepository stockLedgerRepository;
+    private final SalesInvoiceRepository salesInvoiceRepository;
     private final TaxCalculator taxCalculator;
+    private final com.Billing_System.util.InvoiceNumberGenerator invoiceNumberGenerator;
 
-    /** List all purchase orders, newest first */
+    /** List all purchase orders + sales (merged), newest first */
     @Transactional(readOnly = true)
-    public List<PurchaseOrder> getAllPurchases() {
-        return purchaseOrderRepository.findAllByOrderByCreatedAtDesc();
+    public List<com.Billing_System.dto.TransactionOverviewDTO> getAllPurchases() {
+        List<PurchaseOrder> orders = purchaseOrderRepository.findAllByOrderByCreatedAtDesc();
+        // Trigger lazy loading
+        orders.forEach(order -> order.getItems().size());
+
+        List<com.Billing_System.dto.TransactionOverviewDTO> result = new java.util.ArrayList<>();
+
+        // Add Purchases
+        for (PurchaseOrder po : orders) {
+            result.add(com.Billing_System.dto.TransactionOverviewDTO.builder()
+                    .id(po.getId())
+                    .type("PURCHASE")
+                    .partyName(po.getSupplier() != null ? po.getSupplier().getName() : "Unknown")
+                    .invoiceNumber(po.getInvoiceNumber())
+                    .invoiceDate(po.getInvoiceDate())
+                    .amount(po.getGrandTotal())
+                    .status(po.getStatus())
+                    .createdAt(po.getCreatedAt())
+                    .build());
+        }
+
+        // Add Sales (POS transactions)
+        List<SalesInvoice> sales = salesInvoiceRepository.findAllWithItemsOrderByCreatedAtDesc();
+        for (SalesInvoice si : sales) {
+            result.add(com.Billing_System.dto.TransactionOverviewDTO.builder()
+                    .id(si.getId())
+                    .type("SALE")
+                    .partyName(si.getCustomerName() != null && !si.getCustomerName().isEmpty() ? si.getCustomerName()
+                            : "Cash Customer")
+                    .invoiceNumber(si.getInvoiceNumber())
+                    .invoiceDate(si.getInvoiceDate())
+                    .amount(si.getGrandTotal())
+                    .status(si.getStatus())
+                    .createdAt(si.getCreatedAt())
+                    .build());
+        }
+
+        // Sort by created at descending
+        result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+        return result;
     }
 
     /** Get single purchase order with line items by ID – uses JOIN FETCH, no N+1 */
@@ -55,29 +96,41 @@ public class PurchaseService {
      * Now: 1 SELECT ... WHERE id IN (...) loads all products at once.
      */
     public PurchaseOrder savePurchase(PurchaseRequestDTO dto) {
+        UUID supplierUuid;
+        try {
+            supplierUuid = UUID.fromString(dto.getSupplierId());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Supplier ID format: " + dto.getSupplierId());
+        }
 
-        // 1. Validate supplier (single lookup, fine)
-        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
-                .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + dto.getSupplierId()));
+        // 1. Validate supplier
+        Supplier supplier = supplierRepository.findById(supplierUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Supplier not found with ID: " + dto.getSupplierId()));
 
-        // 2. Batch-load ALL products in ONE query ──────────────────────────────
-        List<UUID> productIds = dto.getItems().stream()
-                .map(PurchaseRequestDTO.PurchaseItemDTO::getProductId)
-                .collect(Collectors.toList());
+        // 2. Parse and Batch-load ALL products ──────────────────────────────
+        List<UUID> productUuids = new ArrayList<>();
+        for (PurchaseRequestDTO.PurchaseItemDTO item : dto.getItems()) {
+            try {
+                productUuids.add(UUID.fromString(item.getProductId()));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid Product ID format: " + item.getProductId());
+            }
+        }
 
-        Map<UUID, Product> productMap = productRepository.findAllById(productIds)
+        Map<UUID, Product> productMap = productRepository.findAllById(productUuids)
                 .stream()
                 .collect(Collectors.toMap(Product::getId, Function.identity()));
 
-        // 3. Build line items and calculate totals – all from in-memory map
+        // 3. Build line items and calculate totals
         BigDecimal totalAmount = BigDecimal.ZERO;
         BigDecimal totalTax = BigDecimal.ZERO;
         List<PurchaseItem> lineItems = new ArrayList<>();
 
         for (PurchaseRequestDTO.PurchaseItemDTO itemDto : dto.getItems()) {
-            Product product = productMap.get(itemDto.getProductId());
+            UUID pId = UUID.fromString(itemDto.getProductId());
+            Product product = productMap.get(pId);
             if (product == null) {
-                throw new IllegalArgumentException("Product not found: " + itemDto.getProductId());
+                throw new IllegalArgumentException("Product not found with ID: " + itemDto.getProductId());
             }
 
             BigDecimal gstRate = itemDto.getGstRate() != null ? itemDto.getGstRate() : product.getGstRate();
@@ -85,7 +138,8 @@ public class PurchaseService {
                 gstRate = BigDecimal.ZERO;
 
             BigDecimal discountPct = itemDto.getDiscountPct() != null
-                    ? itemDto.getDiscountPct() : BigDecimal.ZERO;
+                    ? itemDto.getDiscountPct()
+                    : BigDecimal.ZERO;
 
             TaxCalculator.TaxResult tax = taxCalculator.calculate(
                     itemDto.getQuantity(), itemDto.getPurchaseRate(), gstRate, discountPct);
@@ -109,9 +163,13 @@ public class PurchaseService {
         BigDecimal grandTotal = totalAmount.add(totalTax);
 
         // 4. Insert purchase order header
+        String invoiceNumber = (dto.getInvoiceNumber() == null || dto.getInvoiceNumber().trim().isEmpty())
+                ? invoiceNumberGenerator.generateNextForPurchase()
+                : dto.getInvoiceNumber();
+
         PurchaseOrder order = PurchaseOrder.builder()
                 .supplier(supplier)
-                .invoiceNumber(dto.getInvoiceNumber())
+                .invoiceNumber(invoiceNumber)
                 .invoiceDate(dto.getInvoiceDate() != null ? dto.getInvoiceDate() : LocalDate.now())
                 .totalAmount(totalAmount)
                 .taxAmount(totalTax)
@@ -133,7 +191,11 @@ public class PurchaseService {
         // extra queries)
         for (PurchaseItem item : savedOrder.getItems()) {
             Product product = item.getProduct();
-            BigDecimal newStock = product.getCurrentStock().add(item.getQuantity());
+            BigDecimal currentStock = product.getCurrentStock() != null
+                    ? product.getCurrentStock()
+                    : BigDecimal.ZERO;
+
+            BigDecimal newStock = currentStock.add(item.getQuantity());
             product.setCurrentStock(newStock);
             productRepository.save(product);
 

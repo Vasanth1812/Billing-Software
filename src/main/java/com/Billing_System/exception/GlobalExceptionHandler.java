@@ -47,17 +47,42 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle JSON parsing errors (e.g. invalid UUID format, invalid date format)
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleJsonErrors(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        String message = "JSON parse error: " + ex.getMostSpecificCause().getMessage();
+        return buildResponse(HttpStatus.BAD_REQUEST, message, null);
+    }
+
+    /**
+     * Handle data integrity violations (e.g. unique constraint, not null
+     * constraint)
+     */
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(
+            org.springframework.dao.DataIntegrityViolationException ex) {
+        String message = "Database constraint violation";
+        if (ex.getMostSpecificCause().getMessage().contains("detail")) {
+            message += ": " + ex.getMostSpecificCause().getMessage().split("Detail:")[1];
+        }
+        return buildResponse(HttpStatus.CONFLICT, message, null);
+    }
+
+    /**
      * Catch-all for unexpected errors
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericError(Exception ex) {
+        ex.printStackTrace(); // Log the stack trace for debugging
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected error occurred: " + ex.getMessage(), null);
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status,
-                                                               String message,
-                                                               Object details) {
+            String message,
+            Object details) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now().toString());
         body.put("status", status.value());

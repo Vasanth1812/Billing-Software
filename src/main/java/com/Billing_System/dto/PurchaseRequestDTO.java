@@ -13,7 +13,7 @@ import java.util.UUID;
 public class PurchaseRequestDTO {
 
     @NotNull(message = "Supplier ID is required")
-    private UUID supplierId;
+    private String supplierId;
 
     private String invoiceNumber;
 
@@ -34,7 +34,7 @@ public class PurchaseRequestDTO {
     public static class PurchaseItemDTO {
 
         @NotNull(message = "Product ID is required")
-        private UUID productId;
+        private String productId;
 
         @NotNull(message = "Quantity is required")
         @DecimalMin(value = "0.001", message = "Quantity must be greater than 0")
@@ -50,6 +50,6 @@ public class PurchaseRequestDTO {
 
         @DecimalMin(value = "0.0", message = "Discount cannot be negative")
         @DecimalMax(value = "100.0", message = "Discount cannot exceed 100%")
-        private BigDecimal discountPct;   // e.g. 5.0 = 5% discount off purchase rate
+        private BigDecimal discountPct; // e.g. 5.0 = 5% discount off purchase rate
     }
 }

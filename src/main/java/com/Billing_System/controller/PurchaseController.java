@@ -1,8 +1,14 @@
 package com.Billing_System.controller;
 
+import java.util.Optional;
+
 import com.Billing_System.dto.PurchaseRequestDTO;
+import com.Billing_System.dto.TransactionOverviewDTO;
 import com.Billing_System.entity.PurchaseOrder;
+import com.Billing_System.entity.SalesInvoice;
+import com.Billing_System.repository.SalesInvoiceRepository;
 import com.Billing_System.service.PurchaseService;
+import com.Billing_System.service.SalesService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,13 +25,16 @@ import java.util.UUID;
 public class PurchaseController {
 
     private final PurchaseService purchaseService;
+    private final SalesService salesService;
+    private final SalesInvoiceRepository salesInvoiceRepository;
+    private final com.Billing_System.repository.PurchaseOrderRepository purchaseOrderRepository;
 
     /**
      * GET /api/purchases
      * List all purchase orders, newest first
      */
     @GetMapping
-    public ResponseEntity<List<PurchaseOrder>> getAllPurchases() {
+    public ResponseEntity<List<TransactionOverviewDTO>> getAllPurchases() {
         return ResponseEntity.ok(purchaseService.getAllPurchases());
     }
 
@@ -34,8 +43,21 @@ public class PurchaseController {
      * View single purchase order with all line items
      */
     @GetMapping("/{id}")
-    public ResponseEntity<PurchaseOrder> getPurchaseById(@PathVariable UUID id) {
-        return ResponseEntity.ok(purchaseService.getPurchaseById(id));
+    public ResponseEntity<?> getPurchaseById(@PathVariable UUID id) {
+        // Try searching in Purchase Orders first
+        Optional<PurchaseOrder> purchase = purchaseOrderRepository.findByIdWithDetails(id);
+        if (purchase.isPresent()) {
+            return ResponseEntity.ok(purchase.get());
+        }
+
+        // If not found, try searching in Sales Invoices (since we merged them in the
+        // list)
+        Optional<SalesInvoice> sale = salesInvoiceRepository.findByIdWithItems(id);
+        if (sale.isPresent()) {
+            return ResponseEntity.ok(sale.get());
+        }
+
+        return ResponseEntity.notFound().build();
     }
 
     /**
