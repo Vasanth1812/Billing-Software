@@ -844,6 +844,39 @@
             ]
         },
         {
+            "name": "Reports",
+            "item": [
+                {
+                    "name": "Get GST Summary",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/reports/gst-summary?from=2026-04-01&to=2026-04-30",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reports",
+                                "gst-summary"
+                            ],
+                            "query": [
+                                {
+                                    "key": "from",
+                                    "value": "2026-04-01"
+                                },
+                                {
+                                    "key": "to",
+                                    "value": "2026-04-30"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
             "name": "Users",
             "item": [
                 {

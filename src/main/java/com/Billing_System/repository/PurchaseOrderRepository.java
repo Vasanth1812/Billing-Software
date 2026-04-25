@@ -43,7 +43,10 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
        @Query("SELECT po FROM PurchaseOrder po JOIN FETCH po.supplier WHERE po.supplier.id = :supplierId")
        List<PurchaseOrder> findBySupplierId(@Param("supplierId") UUID supplierId);
 
-       @Query("SELECT po FROM PurchaseOrder po JOIN FETCH po.supplier " +
+       @Query("SELECT DISTINCT po FROM PurchaseOrder po " +
+                     "JOIN FETCH po.supplier " +
+                     "LEFT JOIN FETCH po.items i " +
+                     "LEFT JOIN FETCH i.product " +
                      "WHERE po.invoiceDate BETWEEN :from AND :to ORDER BY po.invoiceDate DESC")
        List<PurchaseOrder> findByDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
