@@ -84,7 +84,7 @@ public class ProductController {
 
     /**
      * PUT /api/products/{id}
-     * Update product details (does not touch stock)
+     * Update product details (including currentStock)
      */
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProduct(@PathVariable UUID id,

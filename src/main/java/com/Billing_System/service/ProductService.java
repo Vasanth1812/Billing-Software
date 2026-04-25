@@ -82,7 +82,7 @@ public class ProductService {
                 .sellingPrice(dto.getSellingPrice())
                 .description(dto.getDescription())
                 .minStock(dto.getMinStock())
-                .currentStock(dto.getStock() != null ? dto.getStock() : java.math.BigDecimal.ZERO)
+                .currentStock(dto.getCurrentStock() != null ? dto.getCurrentStock() : java.math.BigDecimal.ZERO)
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();
 
@@ -90,8 +90,7 @@ public class ProductService {
     }
 
     /**
-     * Update product details (does NOT touch currentStock – that goes through
-     * purchases/sales)
+     * Update product details (including currentStock)
      */
     public Product updateProduct(UUID id, ProductDTO dto) {
         Product product = getProductById(id);
@@ -121,8 +120,8 @@ public class ProductService {
         product.setDescription(dto.getDescription());
         product.setMinStock(dto.getMinStock());
 
-        if (dto.getStock() != null) {
-            product.setCurrentStock(dto.getStock());
+        if (dto.getCurrentStock() != null) {
+            product.setCurrentStock(dto.getCurrentStock());
         }
         if (dto.getIsActive() != null) {
             product.setIsActive(dto.getIsActive());

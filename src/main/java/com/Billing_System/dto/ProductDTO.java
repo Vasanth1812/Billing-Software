@@ -1,5 +1,6 @@
 package com.Billing_System.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -45,9 +46,11 @@ public class ProductDTO {
 
     private String description;
 
+    @JsonProperty("currentStock")
     @DecimalMin(value = "0.0", message = "Stock cannot be negative")
-    private BigDecimal stock;
+    private BigDecimal currentStock;
 
+    @JsonProperty("minStock")
     @DecimalMin(value = "0.0", message = "Minimum stock cannot be negative")
     private BigDecimal minStock;
 

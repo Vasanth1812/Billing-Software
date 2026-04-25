@@ -877,6 +877,54 @@
             ]
         },
         {
+            "name": "Settings",
+            "item": [
+                {
+                    "name": "Get System Settings",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/settings",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update System Settings",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"businessName\": \"RETAILFLOW SOLUTIONS\",\n    \"gstin\": \"29AAAAA0000A1Z5\",\n    \"address\": \"123, Dynamic Tech Park, Whitefield, Bangalore, Karnataka - 560066\",\n    \"phone\": \"+91 98765 43210\",\n    \"email\": \"contact@retailflow.com\",\n    \"bankDetails\": \"HDFC Bank, Acc: 50100234567890, IFSC: HDFC0001234\",\n    \"stateCode\": \"29\",\n    \"state\": \"Karnataka\",\n    \"autoBackup\": true,\n    \"backupEmail\": \"sriniwebdesigner1998@gmail.com\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/settings",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "settings"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
             "name": "Users",
             "item": [
                 {
@@ -1102,7 +1150,7 @@
     "variable": [
         {
             "key": "baseUrl",
-            "value": "http://localhost:8080",
+            "value": "http://localhost:8081",
             "type": "string"
         }
     ]
