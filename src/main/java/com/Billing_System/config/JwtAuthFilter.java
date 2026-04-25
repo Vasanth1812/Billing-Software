@@ -1,5 +1,6 @@
 package com.Billing_System.config;
 
+import com.Billing_System.repository.BlacklistedTokenRepository;
 import com.Billing_System.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -31,6 +32,7 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -48,6 +50,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7); // Remove "Bearer " prefix
 
         try {
+            if (blacklistedTokenRepository.existsByToken(token)) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             if (jwtUtil.isTokenValid(token)) {
                 Claims claims = jwtUtil.parseToken(token);
                 String role = claims.get("role", String.class);

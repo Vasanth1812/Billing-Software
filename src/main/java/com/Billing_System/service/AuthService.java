@@ -1,7 +1,11 @@
 package com.Billing_System.service;
 
 import com.Billing_System.dto.*;
+import com.Billing_System.entity.BlacklistedToken;
+import com.Billing_System.entity.SalesInvoice;
 import com.Billing_System.entity.User;
+import com.Billing_System.repository.BlacklistedTokenRepository;
+import com.Billing_System.repository.SalesInvoiceRepository;
 import com.Billing_System.repository.UserRepository;
 import com.Billing_System.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,16 +26,22 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
+    private final SalesInvoiceRepository salesInvoiceRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final JavaMailSender mailSender;  // nullable — app works without mail config
 
     @org.springframework.beans.factory.annotation.Autowired
     public AuthService(UserRepository userRepository,
+                       BlacklistedTokenRepository blacklistedTokenRepository,
+                       SalesInvoiceRepository salesInvoiceRepository,
                        PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil,
                        @org.springframework.lang.Nullable JavaMailSender mailSender) {
         this.userRepository = userRepository;
+        this.blacklistedTokenRepository = blacklistedTokenRepository;
+        this.salesInvoiceRepository = salesInvoiceRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.mailSender = mailSender;
@@ -41,7 +52,6 @@ public class AuthService {
      * 1. email + password
      * 2. userId + password (e.g. "EMP001" + password)
      */
-    @Transactional(readOnly = true)
     public LoginResponseDTO login(LoginRequestDTO request) {
 
         // Determine which login mode
@@ -62,6 +72,9 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Invalid credentials");
         }
+
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
 
         // Generate JWT
         String token = jwtUtil.generateToken(user.getId(), user.getUserId(), user.getEmail(), user.getRole());
@@ -119,6 +132,63 @@ public class AuthService {
         }
 
         return Map.of("message", "If the email exists, a password reset link has been sent.");
+    }
+
+    /**
+     * LOGOUT — record last logout time and return shift sales.
+     * Shift window = lastLoginAt -> now.
+     */
+    public Map<String, Object> logout(String token) {
+        if (token == null || token.isBlank() || !jwtUtil.isTokenValid(token)) {
+            throw new IllegalArgumentException("Invalid or expired token");
+        }
+
+        blacklistedTokenRepository.deleteByExpiresAtBefore(LocalDateTime.now());
+        if (!blacklistedTokenRepository.existsByToken(token)) {
+            blacklistedTokenRepository.save(
+                    BlacklistedToken.builder()
+                            .token(token)
+                            .expiresAt(jwtUtil.getExpirationDateTime(token))
+                            .build());
+        }
+
+        UUID userId = jwtUtil.getUserId(token);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+
+        LocalDateTime logoutAt = LocalDateTime.now();
+        LocalDateTime shiftStart = user.getLastLoginAt() != null ? user.getLastLoginAt() : logoutAt;
+
+        List<SalesInvoice> shiftSales = salesInvoiceRepository.findByCreatedAtRange(shiftStart, logoutAt);
+
+        java.math.BigDecimal shiftTotal = shiftSales.stream()
+                .map(SalesInvoice::getGrandTotal)
+                .filter(java.util.Objects::nonNull)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        user.setLastLogoutAt(logoutAt);
+        userRepository.save(user);
+
+        List<Map<String, Object>> sales = shiftSales.stream()
+                .map(s -> Map.<String, Object>of(
+                        "id", s.getId(),
+                        "invoiceNumber", s.getInvoiceNumber(),
+                        "invoiceDate", s.getInvoiceDate(),
+                        "createdAt", s.getCreatedAt(),
+                        "customerName", s.getCustomerName() != null ? s.getCustomerName() : "Cash Customer",
+                        "grandTotal", s.getGrandTotal() != null ? s.getGrandTotal() : java.math.BigDecimal.ZERO,
+                        "paymentMode", s.getPaymentMode() != null ? s.getPaymentMode() : "",
+                        "status", s.getStatus() != null ? s.getStatus() : ""))
+                .toList();
+
+        return Map.of(
+                "message", "Logged out successfully",
+                "userId", user.getId(),
+                "shiftStart", shiftStart,
+                "shiftEnd", logoutAt,
+                "invoiceCount", sales.size(),
+                "shiftTotal", shiftTotal,
+                "sales", sales);
     }
 
     /**

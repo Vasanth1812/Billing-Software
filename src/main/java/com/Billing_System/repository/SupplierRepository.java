@@ -10,7 +10,7 @@ import java.util.UUID;
 @Repository
 public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
 
-    List<Supplier> findAllByOrderByNameAsc();
+    List<Supplier> findByIsActiveTrueOrderByNameAsc();
 
     boolean existsByGstin(String gstin);
 }

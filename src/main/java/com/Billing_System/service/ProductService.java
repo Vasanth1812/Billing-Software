@@ -135,5 +135,6 @@ public class ProductService {
         Product product = getProductById(id);
         product.setIsActive(false);
         productRepository.save(product);
+
     }
 }

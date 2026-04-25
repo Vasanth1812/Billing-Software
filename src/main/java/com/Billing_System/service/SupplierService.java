@@ -20,7 +20,7 @@ public class SupplierService {
     /** Get all suppliers ordered by name */
     @Transactional(readOnly = true)
     public List<Supplier> getAllSuppliers() {
-        return supplierRepository.findAllByOrderByNameAsc();
+        return supplierRepository.findByIsActiveTrueOrderByNameAsc();
     }
 
     /** Get supplier by ID */
@@ -40,6 +40,7 @@ public class SupplierService {
                 .gstin(dto.getGstin())
                 .address(dto.getAddress())
                 .creditDays(dto.getCreditDays())
+                .isActive(true)
                 .build();
         return supplierRepository.save(supplier);
     }

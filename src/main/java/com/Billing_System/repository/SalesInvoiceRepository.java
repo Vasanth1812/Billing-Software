@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -57,4 +58,7 @@ public interface SalesInvoiceRepository extends JpaRepository<SalesInvoice, UUID
        @Query("SELECT s FROM SalesInvoice s WHERE s.invoiceDate BETWEEN :from AND :to AND " +
                      "s.customerGstin IS NOT NULL AND s.customerGstin <> '' ORDER BY s.invoiceDate ASC")
        List<SalesInvoice> findB2BInvoicesInRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
+       @Query("SELECT s FROM SalesInvoice s WHERE s.createdAt BETWEEN :from AND :to ORDER BY s.createdAt ASC")
+       List<SalesInvoice> findByCreatedAtRange(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 }

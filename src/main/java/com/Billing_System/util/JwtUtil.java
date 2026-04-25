@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.UUID;
 
@@ -69,6 +71,11 @@ public class JwtUtil {
      */
     public String getRole(String token) {
         return parseToken(token).get("role", String.class);
+    }
+
+    public LocalDateTime getExpirationDateTime(String token) {
+        Date expiration = parseToken(token).getExpiration();
+        return LocalDateTime.ofInstant(expiration.toInstant(), ZoneId.systemDefault());
     }
 
     /**
