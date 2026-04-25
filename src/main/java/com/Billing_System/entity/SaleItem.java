@@ -22,7 +22,7 @@ public class SaleItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id", nullable = false)
     @ToString.Exclude
-    @JsonIgnore   // Prevents circular: SalesInvoice→items→SaleItem→salesInvoice→∞
+    @JsonIgnore // Prevents circular: SalesInvoice→items→SaleItem→salesInvoice→∞
     private SalesInvoice salesInvoice;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -41,6 +41,9 @@ public class SaleItem {
 
     @Column(name = "gst_rate", precision = 5, scale = 2)
     private BigDecimal gstRate;
+
+    @Column(name = "gst_amount", precision = 12, scale = 2)
+    private BigDecimal gstAmount;
 
     @Column(name = "net_amount", precision = 10, scale = 2)
     private BigDecimal netAmount;

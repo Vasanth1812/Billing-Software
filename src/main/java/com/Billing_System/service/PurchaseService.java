@@ -153,7 +153,7 @@ public class PurchaseService {
                     .purchaseRate(itemDto.getPurchaseRate())
                     .discountPct(discountPct)
                     .gstRate(gstRate)
-                    .taxAmount(tax.gstAmount())
+                    .gstAmount(tax.gstAmount())
                     .totalAmount(tax.lineTotal())
                     .build();
 
@@ -172,7 +172,7 @@ public class PurchaseService {
                 .invoiceNumber(invoiceNumber)
                 .invoiceDate(dto.getInvoiceDate() != null ? dto.getInvoiceDate() : LocalDate.now())
                 .totalAmount(totalAmount)
-                .taxAmount(totalTax)
+                .gstAmount(totalTax)
                 .grandTotal(grandTotal)
                 .paymentMode(dto.getPaymentMode())
                 .dueDate(dto.getDueDate())

@@ -74,6 +74,8 @@ public class InventoryService {
                 .name(product.getName())
                 .sku(product.getSku())
                 .categoryName(product.getCategory() != null ? product.getCategory().getName() : "Uncategorized")
+                .brand(product.getBrand())
+                .sellingPrice(product.getSellingPrice())
                 .currentStock(current)
                 .minStock(min)
                 .status(stockStatus)

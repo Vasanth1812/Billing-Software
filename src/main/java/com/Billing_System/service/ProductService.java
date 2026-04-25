@@ -78,6 +78,8 @@ public class ProductService {
                 .gstRate(dto.getGstRate())
                 .hsnCode(dto.getHsnCode())
                 .barcode(dto.getBarcode())
+                .brand(dto.getBrand())
+                .sellingPrice(dto.getSellingPrice())
                 .description(dto.getDescription())
                 .minStock(dto.getMinStock())
                 .currentStock(dto.getStock() != null ? dto.getStock() : java.math.BigDecimal.ZERO)
@@ -114,6 +116,8 @@ public class ProductService {
         product.setGstRate(dto.getGstRate());
         product.setHsnCode(dto.getHsnCode());
         product.setBarcode(dto.getBarcode());
+        product.setBrand(dto.getBrand());
+        product.setSellingPrice(dto.getSellingPrice());
         product.setDescription(dto.getDescription());
         product.setMinStock(dto.getMinStock());
 

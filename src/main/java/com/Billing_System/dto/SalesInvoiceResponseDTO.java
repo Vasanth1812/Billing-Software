@@ -23,6 +23,7 @@ public class SalesInvoiceResponseDTO {
     private BigDecimal cgstAmount;
     private BigDecimal sgstAmount;
     private BigDecimal grandTotal;
+    private BigDecimal totalGstAmount;
     private String paymentMode;
     private String status;
     private LocalDateTime createdAt;
@@ -39,6 +40,7 @@ public class SalesInvoiceResponseDTO {
         private BigDecimal mrp;
         private BigDecimal discountPct;
         private BigDecimal gstRate;
+        private BigDecimal gstAmount;
         private BigDecimal netAmount;
     }
 }

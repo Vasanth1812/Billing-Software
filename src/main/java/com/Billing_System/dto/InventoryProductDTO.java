@@ -18,6 +18,8 @@ public class InventoryProductDTO {
     private String name;
     private String sku;
     private String categoryName;
+    private String brand;
+    private BigDecimal sellingPrice;
     private BigDecimal currentStock;
     private BigDecimal minStock;
     private String status; // OK, LOW, OUT

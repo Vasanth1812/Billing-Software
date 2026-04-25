@@ -37,6 +37,12 @@ public class ProductDTO {
 
     private String barcode;
 
+    @Size(max = 100, message = "Brand must not exceed 100 characters")
+    private String brand;
+
+    @DecimalMin(value = "0.0", message = "Selling price cannot be negative")
+    private BigDecimal sellingPrice;
+
     private String description;
 
     @DecimalMin(value = "0.0", message = "Stock cannot be negative")

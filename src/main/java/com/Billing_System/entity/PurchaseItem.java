@@ -22,7 +22,7 @@ public class PurchaseItem {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "purchase_order_id", nullable = false)
     @ToString.Exclude
-    @JsonIgnore   // Prevents circular: PurchaseOrder→items→PurchaseItem→purchaseOrder→∞
+    @JsonIgnore // Prevents circular: PurchaseOrder→items→PurchaseItem→purchaseOrder→∞
     private PurchaseOrder purchaseOrder;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -37,13 +37,13 @@ public class PurchaseItem {
 
     @Builder.Default
     @Column(name = "discount_pct", precision = 5, scale = 2)
-    private BigDecimal discountPct = BigDecimal.ZERO;   // e.g. 5.00 = 5% discount
+    private BigDecimal discountPct = BigDecimal.ZERO; // e.g. 5.00 = 5% discount
 
     @Column(name = "gst_rate", precision = 5, scale = 2)
     private BigDecimal gstRate;
 
-    @Column(name = "tax_amount", precision = 10, scale = 2)
-    private BigDecimal taxAmount;
+    @Column(name = "gst_amount", precision = 10, scale = 2)
+    private BigDecimal gstAmount;
 
     @Column(name = "total_amount", precision = 10, scale = 2)
     private BigDecimal totalAmount;

@@ -47,6 +47,12 @@ public class Product {
     @Column(name = "barcode", length = 50)
     private String barcode;
 
+    @Column(name = "brand", length = 100)
+    private String brand;
+
+    @Column(name = "selling_price", precision = 12, scale = 2)
+    private BigDecimal sellingPrice;
+
     @Column(name = "description", length = 500)
     private String description;
 

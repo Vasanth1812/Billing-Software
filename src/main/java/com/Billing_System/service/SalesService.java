@@ -121,6 +121,7 @@ public class SalesService {
                     .mrp(itemDto.getMrp())
                     .discountPct(discountPct)
                     .gstRate(gstRate)
+                    .gstAmount(tax.gstAmount())
                     .netAmount(tax.lineTotal())
                     .build();
 
@@ -192,18 +193,37 @@ public class SalesService {
     // Convert entity → clean DTO
     private SalesInvoiceResponseDTO toDTO(SalesInvoice si) {
         List<SalesInvoiceResponseDTO.SaleItemResponseDTO> itemDTOs = si.getItems().stream()
-                .map(item -> SalesInvoiceResponseDTO.SaleItemResponseDTO.builder()
-                        .id(item.getId())
-                        .productName(item.getProduct().getName())
-                        .hsnCode(item.getProduct().getHsnCode())
-                        .sku(item.getProduct().getSku())
-                        .quantity(item.getQuantity())
-                        .mrp(item.getMrp())
-                        .discountPct(item.getDiscountPct())
-                        .gstRate(item.getGstRate())
-                        .netAmount(item.getNetAmount())
-                        .build())
+                .map(item -> {
+                    BigDecimal gstAmount = item.getGstAmount();
+                    if (gstAmount == null && item.getGstRate() != null && item.getNetAmount() != null) {
+                        // Calculate gstAmount from existing data for older records
+                        BigDecimal discPct = item.getDiscountPct() != null ? item.getDiscountPct() : BigDecimal.ZERO;
+                        BigDecimal taxable = item.getQuantity().multiply(item.getMrp())
+                                .multiply(BigDecimal.ONE.subtract(
+                                        discPct.divide(BigDecimal.valueOf(100), 6, java.math.RoundingMode.HALF_UP)))
+                                .setScale(2, java.math.RoundingMode.HALF_UP);
+                        gstAmount = taxable.multiply(item.getGstRate())
+                                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    return SalesInvoiceResponseDTO.SaleItemResponseDTO.builder()
+                            .id(item.getId())
+                            .productName(item.getProduct().getName())
+                            .hsnCode(item.getProduct().getHsnCode())
+                            .sku(item.getProduct().getSku())
+                            .quantity(item.getQuantity())
+                            .mrp(item.getMrp())
+                            .discountPct(item.getDiscountPct())
+                            .gstRate(item.getGstRate())
+                            .gstAmount(gstAmount)
+                            .netAmount(item.getNetAmount())
+                            .build();
+                })
                 .collect(Collectors.toList());
+
+        BigDecimal totalGstAmount = itemDTOs.stream()
+                .map(SalesInvoiceResponseDTO.SaleItemResponseDTO::getGstAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return SalesInvoiceResponseDTO.builder()
                 .id(si.getId())
@@ -216,6 +236,7 @@ public class SalesService {
                 .cgstAmount(si.getCgstAmount())
                 .sgstAmount(si.getSgstAmount())
                 .grandTotal(si.getGrandTotal())
+                .totalGstAmount(totalGstAmount)
                 .paymentMode(si.getPaymentMode())
                 .status(si.getStatus())
                 .createdAt(si.getCreatedAt())
@@ -231,6 +252,5 @@ public class SalesService {
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
-
 
 }

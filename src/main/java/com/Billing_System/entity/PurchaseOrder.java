@@ -36,8 +36,8 @@ public class PurchaseOrder {
     @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
-    @Column(name = "tax_amount", precision = 12, scale = 2)
-    private BigDecimal taxAmount;
+    @Column(name = "gst_amount", precision = 12, scale = 2)
+    private BigDecimal gstAmount;
 
     @Column(name = "grand_total", precision = 12, scale = 2)
     private BigDecimal grandTotal;

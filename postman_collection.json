@@ -339,7 +339,7 @@
                         "header": [],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Samsung Galaxy S23\",\n    \"sku\": \"SAMSUNG-S23-128\",\n    \"categoryId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"unit\": \"PCS\",\n    \"purchaseRate\": 60000.00,\n    \"mrp\": 74999.00,\n    \"gstRate\": 18.0,\n    \"hsnCode\": \"8517\",\n    \"minStock\": 5.0\n}",
+                            "raw": "{\n    \"name\": \"Samsung Galaxy S23\",\n    \"sku\": \"SAMSUNG-S23-128\",\n    \"categoryId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"unit\": \"PCS\",\n    \"purchaseRate\": 60000.00,\n    \"mrp\": 74999.00,\n    \"sellingPrice\": 69999.00,\n    \"gstRate\": 18.0,\n    \"hsnCode\": \"8517\",\n    \"brand\": \"Samsung\",\n    \"minStock\": 5.0\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -365,7 +365,7 @@
                         "header": [],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"name\": \"Samsung Galaxy S23 Ultra\",\n    \"sku\": \"SAMSUNG-S23-ULTRA\",\n    \"categoryId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"unit\": \"PCS\",\n    \"purchaseRate\": 90000.00,\n    \"mrp\": 124999.00,\n    \"gstRate\": 28.0,\n    \"hsnCode\": \"8517\",\n    \"minStock\": 2.0\n}",
+                            "raw": "{\n    \"name\": \"Samsung Galaxy S23 Ultra\",\n    \"sku\": \"SAMSUNG-S23-ULTRA\",\n    \"categoryId\": \"550e8400-e29b-41d4-a716-446655440000\",\n    \"unit\": \"PCS\",\n    \"purchaseRate\": 90000.00,\n    \"mrp\": 124999.00,\n    \"sellingPrice\": 119999.00,\n    \"gstRate\": 28.0,\n    \"hsnCode\": \"8517\",\n    \"brand\": \"Samsung\",\n    \"minStock\": 2.0\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -966,6 +966,99 @@
                                     "key": "id",
                                     "value": "550e8400-e29b-41d4-a716-446655440005"
                                 }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Hold Sales",
+            "item": [
+                {
+                    "name": "Hold Sale",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"label\": \"Table 5 - Customer A\",\n    \"itemsJson\": \"[{\\\"productId\\\":\\\"550e8400-e29b-41d4-a716-446655440001\\\",\\\"quantity\\\":2,\\\"mrp\\\":74999.00,\\\"discountPct\\\":0}]\",\n    \"amount\": 149998.00,\n    \"userId\": \"550e8400-e29b-41d4-a716-446655440005\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/api/sales/hold",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                "hold"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Held Sales",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/sales/hold",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                "hold"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Clear Single Hold",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/sales/hold/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                "hold",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "550e8400-e29b-41d4-a716-446655440006"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Clear All Holds",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/sales/hold",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "sales",
+                                "hold"
                             ]
                         }
                     }
