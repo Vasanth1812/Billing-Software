@@ -57,9 +57,24 @@ public class SalesInvoice {
     @Column(name = "payment_mode", length = 20)
     private String paymentMode;
 
+    /**
+     * Total amount collected so far (sum of all linked Payment records).
+     * For immediate cash/UPI sales: amountPaid = grandTotal from the start.
+     * For credit sales: starts at 0, increases as payments are recorded.
+     */
+    @Builder.Default
+    @Column(name = "amount_paid", precision = 12, scale = 2)
+    private BigDecimal amountPaid = BigDecimal.ZERO;
+
+    /**
+     * Invoice status:
+     *   PAID   — fully settled (amountPaid >= grandTotal)
+     *   CREDIT — partial or no payment yet
+     *   VOID   — cancelled/reversed
+     */
     @Builder.Default
     @Column(name = "status", length = 20)
-    private String status = "paid";
+    private String status = "PAID";
 
     @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
