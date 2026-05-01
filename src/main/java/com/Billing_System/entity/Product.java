@@ -29,6 +29,16 @@ public class Product {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    /**
+     * Primary supplier for this product — used for traceability.
+     * If a product causes harm, you immediately know which supplier to contact.
+     * Nullable: existing products and walk-in purchases still work.
+     * In bulk import (Option A): supplier name MUST exist in suppliers table.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "primary_supplier_id")
+    private Supplier primarySupplier;
+
     @Column(name = "unit", length = 20)
     private String unit;
 

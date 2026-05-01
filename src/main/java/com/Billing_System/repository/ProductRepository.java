@@ -22,7 +22,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
        List<Product> findAllWithCategory();
 
        /**
-        * Single product by ID – LEFT JOIN FETCH avoids a second round-trip for
+        * Single product by ID â€“ LEFT JOIN FETCH avoids a second round-trip for
         * category.
         */
        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.id = :id")
@@ -33,13 +33,20 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
        Optional<Product> findBySku(String sku);
 
        /**
-        * Exact barcode/SKU lookup – JOIN FETCH category, returns single product.
+        * Exact barcode/SKU lookup â€“ JOIN FETCH category, returns single product.
         * Used for POS barcode scan: fast exact match, not LIKE search.
         */
        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE (p.sku = :sku OR p.barcode = :sku)")
        Optional<Product> findBySkuWithCategory(@Param("sku") String sku);
 
        boolean existsBySku(String sku);
+
+       /**
+        * Load ONLY the SKU strings of all products â€” used for O(1) duplicate check
+        * during bulk import. Much faster than loading full Product objects.
+        */
+       @Query("SELECT p.sku FROM Product p")
+       List<String> findAllSkus();
 
        /**
         * Batch-load products by IDs with category JOIN FETCHed in the same query.
@@ -52,7 +59,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
        List<Product> findAllByIdWithCategory(@Param("ids") List<UUID> ids);
 
        /**
-        * Search by name or SKU – JOIN FETCH category in the same query.
+        * Search by name or SKU â€“ JOIN FETCH category in the same query.
         */
        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE " +
                      "(LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
@@ -61,7 +68,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
        List<Product> searchByNameOrSku(@Param("query") String query);
 
        /**
-        * Low stock – JOIN FETCH category so Jackson doesn't trigger N queries.
+        * Low stock â€“ JOIN FETCH category so Jackson doesn't trigger N queries.
         */
        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category " +
                      "WHERE p.currentStock <= p.minStock")
@@ -81,4 +88,21 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category WHERE p.isActive = true AND p.currentStock <= 0")
        List<Product> findOutOfStockProducts();
+        /**
+         * Load ONLY barcode strings - for O(1) duplicate barcode detection in bulk import.
+         */
+        @Query("SELECT p.barcode FROM Product p WHERE p.barcode IS NOT NULL")
+        List<String> findAllBarcodes();
+
+        /**
+         * Returns ALL products whose barcode is shared by 2+ products.
+         * Used by the frontend 'Duplicates' button -> GET /api/products/duplicates
+         */
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category " +
+               "WHERE p.barcode IS NOT NULL AND p.barcode IN (" +
+               "  SELECT p2.barcode FROM Product p2 " +
+               "  WHERE p2.barcode IS NOT NULL " +
+               "  GROUP BY p2.barcode HAVING COUNT(p2) > 1" +
+               ") ORDER BY p.barcode, p.name")
+        List<Product> findProductsWithDuplicateBarcodes();
 }

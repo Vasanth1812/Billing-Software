@@ -3,8 +3,10 @@ package com.Billing_System.service;
 import com.Billing_System.dto.ProductDTO;
 import com.Billing_System.entity.Category;
 import com.Billing_System.entity.Product;
+import com.Billing_System.entity.Supplier;
 import com.Billing_System.repository.CategoryRepository;
 import com.Billing_System.repository.ProductRepository;
+import com.Billing_System.repository.SupplierRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final SupplierRepository supplierRepository;
 
     /** List all active products */
     @Transactional(readOnly = true)
@@ -56,22 +59,30 @@ public class ProductService {
         return productRepository.findLowStockProducts();
     }
 
-    /** Create a new product – currentStock starts at 0 as per document spec */
+    /**
+     * Returns all products whose barcode is shared by 2+ products.
+     * Called by the frontend "Duplicates" button after a bulk import.
+     * User can then edit each product and assign a unique barcode.
+     */
+    @Transactional(readOnly = true)
+    public List<Product> getDuplicateBarcodeProducts() {
+        return productRepository.findProductsWithDuplicateBarcodes();
+    }
+
+    /** Create a new product */
     public Product createProduct(ProductDTO dto) {
         if (productRepository.existsBySku(dto.getSku())) {
             throw new IllegalArgumentException("Product with SKU '" + dto.getSku() + "' already exists");
         }
 
-        Category category = null;
-        if (dto.getCategoryId() != null) {
-            category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found: " + dto.getCategoryId()));
-        }
+        Category category = resolveCategory(dto.getCategoryId());
+        Supplier primarySupplier = resolvePrimarySupplier(dto.getPrimarySupplierId());
 
         Product product = Product.builder()
                 .name(dto.getName())
                 .sku(dto.getSku())
                 .category(category)
+                .primarySupplier(primarySupplier)
                 .unit(dto.getUnit())
                 .purchaseRate(dto.getPurchaseRate())
                 .mrp(dto.getMrp())
@@ -89,26 +100,18 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    /**
-     * Update product details (including currentStock)
-     */
+    /** Update product details */
     public Product updateProduct(UUID id, ProductDTO dto) {
         Product product = getProductById(id);
 
-        // Check SKU uniqueness only if it has changed
         if (!product.getSku().equals(dto.getSku()) && productRepository.existsBySku(dto.getSku())) {
             throw new IllegalArgumentException("Product with SKU '" + dto.getSku() + "' already exists");
         }
 
-        Category category = null;
-        if (dto.getCategoryId() != null) {
-            category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found: " + dto.getCategoryId()));
-        }
-
         product.setName(dto.getName());
         product.setSku(dto.getSku());
-        product.setCategory(category);
+        product.setCategory(resolveCategory(dto.getCategoryId()));
+        product.setPrimarySupplier(resolvePrimarySupplier(dto.getPrimarySupplierId()));
         product.setUnit(dto.getUnit());
         product.setPurchaseRate(dto.getPurchaseRate());
         product.setMrp(dto.getMrp());
@@ -120,14 +123,24 @@ public class ProductService {
         product.setDescription(dto.getDescription());
         product.setMinStock(dto.getMinStock());
 
-        if (dto.getCurrentStock() != null) {
-            product.setCurrentStock(dto.getCurrentStock());
-        }
-        if (dto.getIsActive() != null) {
-            product.setIsActive(dto.getIsActive());
-        }
+        if (dto.getCurrentStock() != null) product.setCurrentStock(dto.getCurrentStock());
+        if (dto.getIsActive() != null)     product.setIsActive(dto.getIsActive());
 
         return productRepository.save(product);
+    }
+
+    // ─── Private Helpers ────────────────────────────────────────────────────────
+
+    private Category resolveCategory(UUID categoryId) {
+        if (categoryId == null) return null;
+        return categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+    }
+
+    private Supplier resolvePrimarySupplier(UUID supplierId) {
+        if (supplierId == null) return null;
+        return supplierRepository.findById(supplierId)
+                .orElseThrow(() -> new IllegalArgumentException("Supplier not found: " + supplierId));
     }
 
     /** Soft delete – sets isActive to false */

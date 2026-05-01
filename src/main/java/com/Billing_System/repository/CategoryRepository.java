@@ -15,5 +15,8 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     Optional<Category> findByName(String name);
 
+    /** Case-insensitive lookup — used during bulk import so "Dairy" and "dairy" map to same category */
+    Optional<Category> findByNameIgnoreCase(String name);
+
     boolean existsByName(String name);
 }

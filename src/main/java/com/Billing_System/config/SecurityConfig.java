@@ -3,6 +3,7 @@ package com.Billing_System.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -50,15 +51,53 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints — no token needed
+
+                // ── PUBLIC — no token needed ──────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
 
-                // All other API endpoints — JWT required
-                .requestMatchers("/api/**").authenticated()
+                // ── ADMIN only ────────────────────────────────────────────────
+                // Only ADMIN can manage users and bulk import
+                .requestMatchers(HttpMethod.POST,   "/api/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT,    "/api/users/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
 
+                // Only ADMIN can manage suppliers (traceability anchor)
+                .requestMatchers(HttpMethod.POST,   "/api/suppliers/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT,    "/api/suppliers/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/suppliers/**").hasRole("ADMIN")
+
+                // ── ADMIN + MANAGER ───────────────────────────────────────────
+                // Products: ADMIN and MANAGER can create/update/delete/import
+                .requestMatchers(HttpMethod.POST,   "/api/products/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/products/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // Categories: ADMIN and MANAGER can create/update/delete
+                .requestMatchers(HttpMethod.POST,   "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // Purchases: ADMIN and MANAGER only
+                .requestMatchers(HttpMethod.POST,   "/api/purchases/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/purchases/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // ── ALL ROLES (ADMIN + MANAGER + CASHIER) ────────────────────
+                // Cashier can process sales
+                .requestMatchers("/api/sales/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+
+                // Cashier can look up products (for POS / barcode scan)
+                .requestMatchers(HttpMethod.GET, "/api/products/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+                .requestMatchers(HttpMethod.GET, "/api/categories/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+                .requestMatchers(HttpMethod.GET, "/api/suppliers/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+                .requestMatchers(HttpMethod.GET, "/api/purchases/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+
+                // Reports: ADMIN and MANAGER only
+                .requestMatchers("/api/reports/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+
+                // Everything else requires authentication
                 .anyRequest().authenticated()
             )
-            // Add JWT filter BEFORE Spring's default auth filter
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

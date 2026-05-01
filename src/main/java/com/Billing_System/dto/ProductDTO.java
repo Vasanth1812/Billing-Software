@@ -20,6 +20,9 @@ public class ProductDTO {
 
     private UUID categoryId;
 
+    /** Primary supplier UUID — for traceability. Optional but strongly recommended. */
+    private UUID primarySupplierId;
+
     @Size(max = 20, message = "Unit must not exceed 20 characters")
     private String unit;
 

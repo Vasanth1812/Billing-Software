@@ -88,6 +88,15 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Apache POI — reads .xlsx files for bulk product import -->
+		<!-- BillPro spec: ONLY .xlsx accepted, NO csv/xls/ods -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.3.0</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
