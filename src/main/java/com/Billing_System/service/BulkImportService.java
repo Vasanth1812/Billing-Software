@@ -1,12 +1,19 @@
 package com.Billing_System.service;
 
 import com.Billing_System.dto.BulkImportResponseDTO;
+import com.Billing_System.entity.BulkUpload;
+import com.Billing_System.entity.BulkUploadRow;
+import com.Billing_System.entity.BulkUploadTemplate;
 import com.Billing_System.entity.Category;
 import com.Billing_System.entity.Product;
 import com.Billing_System.entity.Supplier;
+import com.Billing_System.repository.BulkUploadRepository;
+import com.Billing_System.repository.BulkUploadRowRepository;
+import com.Billing_System.repository.BulkUploadTemplateRepository;
 import com.Billing_System.repository.CategoryRepository;
 import com.Billing_System.repository.ProductRepository;
 import com.Billing_System.repository.SupplierRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
@@ -81,6 +88,24 @@ public class BulkImportService {
     private static final int COL_EXPIRY        = 13;
     private static final int COL_ACTIVE        = 14;
 
+    private static final String[] TEMPLATE_HEADERS = {
+            "Product Name",
+            "SKU / Barcode",
+            "Category",
+            "Unit of Measure",
+            "Purchase Rate (\u20b9)",
+            "MRP / Selling Price",
+            "GST %",
+            "HSN Code",
+            "Opening Stock Qty",
+            "Min Stock Level",
+            "Product Description",
+            "Brand",
+            "Supplier Name",
+            "Expiry / Shelf Life",
+            "Active (YES/NO)"
+    };
+
     private static final Set<BigDecimal> VALID_GST_RATES = Set.of(
             BigDecimal.ZERO,
             new BigDecimal("5"),
@@ -92,6 +117,10 @@ public class BulkImportService {
     private final ProductRepository  productRepository;
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
+    private final BulkUploadRepository bulkUploadRepository;
+    private final BulkUploadRowRepository bulkUploadRowRepository;
+    private final BulkUploadTemplateRepository bulkUploadTemplateRepository;
+    private final ObjectMapper objectMapper;
 
     /**
      * Main entry point — parse XLSX, batch insert, return import report.
@@ -107,9 +136,17 @@ public class BulkImportService {
                                                          boolean autoCreateSuppliers) {
         validateFile(file);
 
+        BulkUpload upload = bulkUploadRepository.save(BulkUpload.builder()
+                .fileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : "bulk-upload.xlsx")
+                .status("PROCESSING")
+                .autoCreateSuppliers(autoCreateSuppliers)
+                .build());
+
         List<String>  skippedSkus = new ArrayList<>();
         List<String>  errors      = new ArrayList<>();
         List<Product> batch       = new ArrayList<>(BATCH_SIZE);
+        List<BulkUploadRow> uploadRows = new ArrayList<>();
+        Set<String> supplierNamesInFile = new LinkedHashSet<>();
         int successCount          = 0;
         int skippedCount          = 0;
         int totalRows             = 0;
@@ -158,11 +195,19 @@ public class BulkImportService {
                     continue;
                 }
 
+                BulkUploadRow uploadRow = createUploadRowSnapshot(upload, row, excelRowNum);
+                uploadRows.add(uploadRow);
+                if (uploadRow.getSupplierName() != null && !uploadRow.getSupplierName().isBlank()) {
+                    supplierNamesInFile.add(uploadRow.getSupplierName());
+                }
+
                 try {
-                    String rawBarcode = getCellString(row, COL_SKU);
+                    String rawBarcode = uploadRow.getSkuBarcode() != null ? uploadRow.getSkuBarcode() : "";
 
                     if (rawBarcode.isBlank()) {
-                        errors.add("Row " + excelRowNum + ": SKU / Barcode (Column B) is required");
+                        String message = "SKU / Barcode (Column B) is required";
+                        errors.add("Row " + excelRowNum + ": " + message);
+                        markUploadRow(uploadRow, "FAILED", message, null);
                         continue;
                     }
 
@@ -189,6 +234,7 @@ public class BulkImportService {
                     if (existingSkus.contains(sku)) {
                         skippedSkus.add(sku);
                         skippedCount++;
+                        markUploadRow(uploadRow, "SKIPPED", "SKU already exists in DB: " + sku, null);
                         log.debug("Row {} — SKU '{}' already in DB, skipped", excelRowNum, sku);
                         continue;
                     }
@@ -197,6 +243,7 @@ public class BulkImportService {
                                                       categoryCache, supplierCache,
                                                       autoCreateSuppliers);
                     batch.add(product);
+                    markUploadRow(uploadRow, "SUCCESS", null, product);
                     existingSkus.add(sku);
                     existingBarcodes.add(rawBarcode);
 
@@ -210,6 +257,7 @@ public class BulkImportService {
 
                 } catch (Exception e) {
                     errors.add("Row " + excelRowNum + ": " + e.getMessage());
+                    markUploadRow(uploadRow, "FAILED", e.getMessage(), null);
                     log.warn("Row {} failed: {}", excelRowNum, e.getMessage());
                 }
             }
@@ -227,7 +275,19 @@ public class BulkImportService {
         log.info("Bulk import complete — success={}, skipped={}, duplicateBarcodes={}, failed={}",
                 successCount, skippedCount, duplicateBarcodeCount, errors.size());
 
+        upload.setTotalRows(totalRows);
+        upload.setSuccessCount(successCount);
+        upload.setSkippedCount(skippedCount);
+        upload.setFailedCount(errors.size());
+        upload.setDuplicateBarcodeCount(duplicateBarcodeCount);
+        upload.setStatus(resolveUploadStatus(successCount, skippedCount, errors.size()));
+        bulkUploadRepository.save(upload);
+        bulkUploadRowRepository.saveAll(uploadRows);
+        saveTemplatesForSuppliers(supplierNamesInFile, supplierCache, upload);
+
         return BulkImportResponseDTO.builder()
+                .bulkUploadId(upload.getId())
+                .status(upload.getStatus())
                 .totalRows(totalRows)
                 .successCount(successCount)
                 .skippedCount(skippedCount)
@@ -239,6 +299,93 @@ public class BulkImportService {
     }
 
     // ─── Private Helpers ────────────────────────────────────────────────────────
+
+    private BulkUploadRow createUploadRowSnapshot(BulkUpload upload, Row row, int excelRowNum) {
+        return BulkUploadRow.builder()
+                .upload(upload)
+                .rowNumber(excelRowNum)
+                .status("PENDING")
+                .productName(getCellString(row, COL_NAME))
+                .skuBarcode(getCellString(row, COL_SKU))
+                .category(getCellString(row, COL_CATEGORY))
+                .unitOfMeasure(getCellString(row, COL_UNIT))
+                .purchaseRate(parseBigDecimalSnapshot(row, COL_PURCHASE_RATE))
+                .mrp(parseBigDecimalSnapshot(row, COL_MRP))
+                .gstRate(parseBigDecimalSnapshot(row, COL_GST_RATE))
+                .hsnCode(getCellString(row, COL_HSN_CODE))
+                .openingStock(parseBigDecimalSnapshot(row, COL_OPENING_STOCK))
+                .minStock(parseBigDecimalSnapshot(row, COL_MIN_STOCK))
+                .description(getCellString(row, COL_DESCRIPTION))
+                .brand(getCellString(row, COL_BRAND))
+                .supplierName(getCellString(row, COL_SUPPLIER_NAME))
+                .expiry(getCellString(row, COL_EXPIRY))
+                .active(getCellString(row, COL_ACTIVE))
+                .build();
+    }
+
+    private void markUploadRow(BulkUploadRow row, String status, String errorMessage, Product product) {
+        row.setStatus(status);
+        row.setErrorMessage(errorMessage);
+        row.setProduct(product);
+    }
+
+    private String resolveUploadStatus(int successCount, int skippedCount, int failedCount) {
+        if (successCount == 0 && failedCount > 0 && skippedCount == 0) {
+            return "FAILED";
+        }
+        if (failedCount > 0 || skippedCount > 0) {
+            return "PARTIAL";
+        }
+        return "SUCCESS";
+    }
+
+    private void saveTemplatesForSuppliers(Set<String> supplierNames,
+                                           Map<String, Supplier> supplierCache,
+                                           BulkUpload sourceUpload) {
+        String headersJson = writeHeadersJson();
+        for (String supplierName : supplierNames) {
+            String normalized = normalizeSupplierName(supplierName);
+            if (normalized.isBlank()) {
+                continue;
+            }
+            BulkUploadTemplate template = bulkUploadTemplateRepository.findByNormalizedSupplierName(normalized)
+                    .orElseGet(() -> BulkUploadTemplate.builder()
+                            .supplierNameSnapshot(supplierName)
+                            .normalizedSupplierName(normalized)
+                            .sourceUpload(sourceUpload)
+                            .build());
+
+            template.setSupplier(supplierCache.get(normalized));
+            template.setSupplierNameSnapshot(supplierName);
+            template.setTemplateName("Products Master");
+            template.setHeadersJson(headersJson);
+            template.setColumnCount(TEMPLATE_HEADERS.length);
+            template.setLastUsedAt(java.time.LocalDateTime.now());
+            bulkUploadTemplateRepository.save(template);
+        }
+    }
+
+    private String normalizeSupplierName(String supplierName) {
+        return supplierName == null ? "" : supplierName.trim().toLowerCase();
+    }
+
+    private String writeHeadersJson() {
+        try {
+            return objectMapper.writeValueAsString(Arrays.asList(TEMPLATE_HEADERS));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to serialize bulk upload template headers");
+        }
+    }
+
+    private BigDecimal parseBigDecimalSnapshot(Row row, int colIdx) {
+        String val = getCellString(row, colIdx);
+        if (val.isBlank()) return null;
+        try {
+            return new BigDecimal(val);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {

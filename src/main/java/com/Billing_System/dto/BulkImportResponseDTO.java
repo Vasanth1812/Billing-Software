@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Response returned after a bulk product import.
@@ -13,6 +14,8 @@ import java.util.List;
 @Builder
 public class BulkImportResponseDTO {
 
+    private UUID bulkUploadId;          // history id for viewing uploaded rows later
+    private String status;              // SUCCESS / PARTIAL / FAILED
     private int totalRows;              // total data rows in the uploaded XLSX
     private int successCount;           // rows successfully inserted
     private int skippedCount;           // rows skipped (exact SKU already exists in DB)

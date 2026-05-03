@@ -1,9 +1,13 @@
 package com.Billing_System.controller;
 
 import com.Billing_System.dto.BulkImportResponseDTO;
+import com.Billing_System.dto.BulkUploadDetailDTO;
+import com.Billing_System.dto.BulkUploadHistoryDTO;
+import com.Billing_System.dto.BulkUploadTemplateDTO;
 import com.Billing_System.dto.ProductDTO;
 import com.Billing_System.entity.Product;
 import com.Billing_System.service.BulkImportService;
+import com.Billing_System.service.BulkUploadHistoryService;
 import com.Billing_System.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,7 @@ public class ProductController {
 
     private final ProductService productService;
     private final BulkImportService bulkImportService;
+    private final BulkUploadHistoryService bulkUploadHistoryService;
 
     /**
      * GET /api/products
@@ -70,24 +75,76 @@ public class ProductController {
     /**
      * GET /api/products/duplicates
      *
-     * Returns all products that share the same barcode with at least one other product.
+     * Returns all products that share the same barcode with at least one other
+     * product.
      * These are products that need their barcode corrected after a bulk import.
      *
      * Frontend "Duplicates" button calls this endpoint.
-     * The user edits each product (PUT /api/products/{id}) to assign a unique barcode.
+     * The user edits each product (PUT /api/products/{id}) to assign a unique
+     * barcode.
      *
      * Response groups products by barcode — all products with the same barcode
      * appear consecutively (sorted by barcode, then name).
      *
      * Example response when "8901030844208" is shared by 2 products:
      * [
-     *   { "sku": "8901030844208",       "barcode": "8901030844208", "name": "Amul Butter 500g" },
-     *   { "sku": "8901030844208-DUP-2", "barcode": "8901030844208", "name": "Amul Butter 1Kg"  }
+     * { "sku": "8901030844208", "barcode": "8901030844208", "name": "Amul Butter
+     * 500g" },
+     * { "sku": "8901030844208-DUP-2", "barcode": "8901030844208", "name": "Amul
+     * Butter 1Kg" }
      * ]
      */
     @GetMapping("/duplicates")
     public ResponseEntity<List<Product>> getDuplicateBarcodeProducts() {
         return ResponseEntity.ok(productService.getDuplicateBarcodeProducts());
+    }
+
+    /**
+     * GET /api/products/bulk-import/history
+     * Upload history list for the frontend history screen.
+     */
+    @GetMapping("/bulk-import/history")
+    public ResponseEntity<List<BulkUploadHistoryDTO>> getBulkUploadHistory() {
+        return ResponseEntity.ok(bulkUploadHistoryService.getHistory());
+    }
+
+    @DeleteMapping("/bulk-import/history/{uploadId}")
+    public ResponseEntity<Map<String, String>> deleteBulkUpload(@PathVariable UUID uploadId) {
+        bulkUploadHistoryService.deleteUpload(uploadId);
+        return ResponseEntity.ok(Map.of("message", "Bulk upload deleted successfully"));
+    }
+
+    /**
+     * GET /api/products/bulk-import/history/{uploadId}
+     * Full row snapshot for one uploaded file. Used by the View button.
+     */
+    @GetMapping("/bulk-import/history/{uploadId}")
+    public ResponseEntity<BulkUploadDetailDTO> getBulkUploadDetail(@PathVariable UUID uploadId) {
+        return ResponseEntity.ok(bulkUploadHistoryService.getUploadDetail(uploadId));
+    }
+
+    /**
+     * GET /api/products/bulk-import/templates
+     * Distinct supplier templates captured from uploads.
+     */
+    @GetMapping("/bulk-import/templates")
+    public ResponseEntity<List<BulkUploadTemplateDTO>> getBulkUploadTemplates() {
+        return ResponseEntity.ok(bulkUploadHistoryService.getTemplates());
+    }
+
+    /**
+     * GET /api/products/bulk-import/templates/{supplierId}
+     * Header preview for a supplier's latest product upload template.
+     */
+    @GetMapping("/bulk-import/templates/{supplierId}")
+    public ResponseEntity<BulkUploadTemplateDTO> getBulkUploadTemplate(@PathVariable UUID supplierId) {
+        return ResponseEntity.ok(bulkUploadHistoryService.getTemplateBySupplierId(supplierId));
+    }
+
+    @DeleteMapping("/bulk-import/templates/{supplierId}")
+    public ResponseEntity<Map<String, String>> deleteBulkUploadTemplate(@PathVariable UUID supplierId) {
+        bulkUploadHistoryService.deleteTemplateBySupplierId(supplierId);
+        return ResponseEntity.ok(Map.of("message", "Bulk upload template deleted successfully"));
     }
 
     /**
@@ -121,7 +178,7 @@ public class ProductController {
 
     /**
      * DELETE /api/products/{id}
-    /**
+     * /**
      * DELETE /api/products/{id}
      * Soft delete product (isActive = false)
      */
@@ -137,18 +194,18 @@ public class ProductController {
      * BillPro Bulk Upload — imports products from a .xlsx file in batches of 500.
      *
      * QUERY PARAMETERS:
-     *   autoCreateSuppliers=false (default) — STRICT mode:
-     *     Supplier name in Column M must already exist in DB.
-     *     Recommended for daily use. Rejects rows with unknown suppliers.
+     * autoCreateSuppliers=false (default) — STRICT mode:
+     * Supplier name in Column M must already exist in DB.
+     * Recommended for daily use. Rejects rows with unknown suppliers.
      *
-     *   autoCreateSuppliers=true — AUTO mode:
-     *     If supplier not found, creates it automatically with just the name.
-     *     Use this during INITIAL SETUP when importing a large catalogue.
-     *     Admin must fill in supplier details (phone, GSTIN) afterwards.
+     * autoCreateSuppliers=true — AUTO mode:
+     * If supplier not found, creates it automatically with just the name.
+     * Use this during INITIAL SETUP when importing a large catalogue.
+     * Admin must fill in supplier details (phone, GSTIN) afterwards.
      *
      * EXAMPLES:
-     *   POST /api/products/bulk-import                          → strict
-     *   POST /api/products/bulk-import?autoCreateSuppliers=true → auto-create
+     * POST /api/products/bulk-import → strict
+     * POST /api/products/bulk-import?autoCreateSuppliers=true → auto-create
      */
     @PostMapping(value = "/bulk-import", consumes = "multipart/form-data")
     public ResponseEntity<BulkImportResponseDTO> bulkImport(
