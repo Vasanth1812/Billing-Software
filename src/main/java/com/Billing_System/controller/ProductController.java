@@ -109,9 +109,15 @@ public class ProductController {
     }
 
     @DeleteMapping("/bulk-import/history/{uploadId}")
-    public ResponseEntity<Map<String, String>> deleteBulkUpload(@PathVariable UUID uploadId) {
+    public ResponseEntity<Map<String, String>> deleteBulkUploadHistory(@PathVariable UUID uploadId) {
         bulkUploadHistoryService.deleteUpload(uploadId);
-        return ResponseEntity.ok(Map.of("message", "Bulk upload deleted successfully"));
+        return ResponseEntity.ok(Map.of("message", "Bulk upload history deleted successfully"));
+    }
+
+    @PostMapping("/bulk-import/history/{uploadId}/undo")
+    public ResponseEntity<Map<String, String>> undoBulkUpload(@PathVariable UUID uploadId) {
+        bulkUploadHistoryService.undoUpload(uploadId);
+        return ResponseEntity.ok(Map.of("message", "Bulk upload reverted successfully"));
     }
 
     /**

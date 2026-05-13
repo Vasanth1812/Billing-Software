@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface BulkUploadRepository extends JpaRepository<BulkUpload, UUID> {
     List<BulkUpload> findAllByOrderByUploadedAtDesc();
+    
+    boolean existsByFileHashAndStatusIn(String fileHash, List<String> statuses);
 }

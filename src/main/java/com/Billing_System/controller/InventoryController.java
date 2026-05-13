@@ -1,9 +1,9 @@
 package com.Billing_System.controller;
 
-import com.Billing_System.dto.InventorySummaryDTO;
-import com.Billing_System.dto.StockAdjustmentDTO;
+import com.Billing_System.dto.*;
 import com.Billing_System.entity.StockLedger;
 import com.Billing_System.service.InventoryService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -40,5 +40,39 @@ public class InventoryController {
     @GetMapping("/history/{productId}")
     public ResponseEntity<List<StockLedger>> getStockHistory(@PathVariable UUID productId) {
         return ResponseEntity.ok(inventoryService.getStockHistory(productId));
+    }
+
+    // --- Bin Location APIs ---
+
+    @PostMapping("/bins")
+    public ResponseEntity<BinLocationResponseDTO> createBinLocation(@Valid @RequestBody BinLocationRequestDTO request) {
+        return ResponseEntity.status(201).body(inventoryService.createBinLocation(request));
+    }
+
+    @GetMapping("/bins")
+    public ResponseEntity<List<BinLocationResponseDTO>> getAllBinLocations() {
+        return ResponseEntity.ok(inventoryService.getAllBinLocations());
+    }
+
+    // --- STO (Stock Transfer Order) APIs ---
+
+    @PostMapping("/sto")
+    public ResponseEntity<StoResponseDTO> createSTO(
+            @Valid @RequestBody StoRequestDTO request,
+            @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
+        return ResponseEntity.status(201).body(inventoryService.createSTO(request, userId));
+    }
+
+    @GetMapping("/sto")
+    public ResponseEntity<List<StoResponseDTO>> getAllSTOs() {
+        return ResponseEntity.ok(inventoryService.getAllSTOs());
+    }
+
+    @PatchMapping("/sto/{id}/status")
+    public ResponseEntity<StoResponseDTO> updateSTOStatus(
+            @PathVariable UUID id,
+            @RequestParam String status,
+            @RequestHeader(value = "X-User-Id", required = false) UUID approverId) {
+        return ResponseEntity.ok(inventoryService.updateSTOStatus(id, status, approverId));
     }
 }

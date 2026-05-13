@@ -3,6 +3,7 @@ package com.Billing_System.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Check;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "purchase_orders")
+@Check(constraints = "supplier_id IS NOT NULL OR vendor_id IS NOT NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,8 +26,19 @@ public class PurchaseOrder {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supplier_id", nullable = false)
+    @JoinColumn(name = "supplier_id")   // nullable — vendorId-only POs don't need a supplier
+    @ToString.Exclude
     private Supplier supplier;
+
+    /**
+     * Optional link to the Vendor module.
+     * NULL for old POs created before the Vendor module existed.
+     * When set, enables compliance enforcement (blocked vendors can't get new POs).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendor_id")
+    @ToString.Exclude
+    private com.Billing_System.vendor.entity.Vendor vendor;
 
     @Column(name = "invoice_number", length = 50)
     private String invoiceNumber;

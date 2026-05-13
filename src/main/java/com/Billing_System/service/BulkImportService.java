@@ -7,23 +7,29 @@ import com.Billing_System.entity.BulkUploadTemplate;
 import com.Billing_System.entity.Category;
 import com.Billing_System.entity.Product;
 import com.Billing_System.entity.Supplier;
+import com.Billing_System.entity.StockLedger;
 import com.Billing_System.repository.BulkUploadRepository;
 import com.Billing_System.repository.BulkUploadRowRepository;
 import com.Billing_System.repository.BulkUploadTemplateRepository;
 import com.Billing_System.repository.CategoryRepository;
 import com.Billing_System.repository.ProductRepository;
+import com.Billing_System.repository.StockLedgerRepository;
 import com.Billing_System.repository.SupplierRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.security.MessageDigest;
 import java.util.*;
 
 /**
@@ -120,6 +126,7 @@ public class BulkImportService {
     private final BulkUploadRepository bulkUploadRepository;
     private final BulkUploadRowRepository bulkUploadRowRepository;
     private final BulkUploadTemplateRepository bulkUploadTemplateRepository;
+    private final StockLedgerRepository stockLedgerRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -136,15 +143,22 @@ public class BulkImportService {
                                                          boolean autoCreateSuppliers) {
         validateFile(file);
 
+        String fileHash = calculateFileHash(file);
+        if (bulkUploadRepository.existsByFileHashAndStatusIn(fileHash, List.of("SUCCESS", "PARTIAL"))) {
+            throw new IllegalArgumentException("Duplicate Upload: This exact file has already been processed successfully. If you modified it, please provide a unique reference number or delete the old upload first.");
+        }
+
         BulkUpload upload = bulkUploadRepository.save(BulkUpload.builder()
                 .fileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : "bulk-upload.xlsx")
                 .status("PROCESSING")
                 .autoCreateSuppliers(autoCreateSuppliers)
+                .fileHash(fileHash)
                 .build());
 
         List<String>  skippedSkus = new ArrayList<>();
         List<String>  errors      = new ArrayList<>();
         List<Product> batch       = new ArrayList<>(BATCH_SIZE);
+        List<BulkUploadRow> currentBatchRows = new ArrayList<>(BATCH_SIZE);
         List<BulkUploadRow> uploadRows = new ArrayList<>();
         Set<String> supplierNamesInFile = new LinkedHashSet<>();
         int successCount          = 0;
@@ -170,7 +184,16 @@ public class BulkImportService {
         // Key: barcode value → how many times seen so far in this upload
         Map<String, Integer> barcodeCountInFile = new HashMap<>();
 
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        // CSV files use a completely different parse path
+        if (isCsvFile(file)) {
+            return importFromCsv(file, upload, skippedSkus, errors, batch, currentBatchRows,
+                    uploadRows, supplierNamesInFile, categoryCache, supplierCache,
+                    existingSkus, existingBarcodes, barcodeCountInFile,
+                    autoCreateSuppliers);
+        }
+
+        // .xlsx and .xls — WorkbookFactory auto-detects both formats
+        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
 
             Sheet sheet      = workbook.getSheetAt(0);
             int   lastRowNum = sheet.getLastRowNum();
@@ -230,19 +253,32 @@ public class BulkImportService {
                                 excelRowNum, rawBarcode, sku);
                     }
 
-                    // Skip if this exact SKU already exists (re-upload protection)
+                    // ── ADD MODE: Update existing product or create new ────────────────
+                    Product product;
                     if (existingSkus.contains(sku)) {
-                        skippedSkus.add(sku);
-                        skippedCount++;
-                        markUploadRow(uploadRow, "SKIPPED", "SKU already exists in DB: " + sku, null);
-                        log.debug("Row {} — SKU '{}' already in DB, skipped", excelRowNum, sku);
-                        continue;
+                        // Fetch existing product
+                        product = productRepository.findBySku(sku).orElseThrow(() -> new IllegalStateException("SKU exists but not found"));
+                        
+                        // Update details
+                        updateProductFromRow(product, row, categoryCache, supplierCache, autoCreateSuppliers, excelRowNum);
+                        
+                        // Add opening stock to current stock (if any)
+                        BigDecimal incomingStock = parseBigDecimalOptional(row, COL_OPENING_STOCK);
+                        if (incomingStock != null && incomingStock.compareTo(BigDecimal.ZERO) > 0) {
+                            product.setCurrentStock(product.getCurrentStock().add(incomingStock));
+                            // We need to pass the *incoming* stock amount to markUploadRow so we can record it in the ledger later
+                            uploadRow.setOpeningStock(incomingStock);
+                        } else {
+                            uploadRow.setOpeningStock(BigDecimal.ZERO);
+                        }
+                    } else {
+                        product = mapRowToProduct(row, excelRowNum, sku, rawBarcode, categoryCache, supplierCache, autoCreateSuppliers);
+                        // Save incoming stock in row for ledger
+                        uploadRow.setOpeningStock(product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO);
                     }
 
-                    Product product = mapRowToProduct(row, excelRowNum, sku, rawBarcode,
-                                                      categoryCache, supplierCache,
-                                                      autoCreateSuppliers);
                     batch.add(product);
+                    currentBatchRows.add(uploadRow);
                     markUploadRow(uploadRow, "SUCCESS", null, product);
                     existingSkus.add(sku);
                     existingBarcodes.add(rawBarcode);
@@ -250,9 +286,11 @@ public class BulkImportService {
                     // Flush batch to DB when full
                     if (batch.size() == BATCH_SIZE) {
                         productRepository.saveAll(batch);
+                        recordStockLedgerForBatch(currentBatchRows);
                         successCount += batch.size();
                         log.info("Batch saved — {} products inserted so far", successCount);
                         batch.clear();
+                        currentBatchRows.clear();
                     }
 
                 } catch (Exception e) {
@@ -265,6 +303,7 @@ public class BulkImportService {
             // Save the final partial batch (remainder < 500)
             if (!batch.isEmpty()) {
                 productRepository.saveAll(batch);
+                recordStockLedgerForBatch(currentBatchRows);
                 successCount += batch.size();
             }
 
@@ -299,6 +338,49 @@ public class BulkImportService {
     }
 
     // ─── Private Helpers ────────────────────────────────────────────────────────
+
+    private String calculateFileHash(MultipartFile file) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            
+            // Hash the filename first
+            String filename = file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown";
+            digest.update(filename.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            
+            // Then hash the file contents
+            byte[] hashBytes = digest.digest(file.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to calculate file hash", e);
+        }
+    }
+
+    private void recordStockLedgerForBatch(List<BulkUploadRow> batchRows) {
+        List<StockLedger> ledgers = new ArrayList<>();
+        for (BulkUploadRow row : batchRows) {
+            Product product = row.getProduct();
+            BigDecimal incomingStock = row.getOpeningStock();
+            if (product != null && incomingStock != null && incomingStock.compareTo(BigDecimal.ZERO) > 0) {
+                ledgers.add(StockLedger.builder()
+                        .product(product)
+                        .transactionType("OPENING_STOCK")
+                        .quantityIn(incomingStock)
+                        .balanceStock(product.getCurrentStock())
+                        .transactionDate(java.time.LocalDateTime.now())
+                        .reason("Bulk Import Initial Stock")
+                        .build());
+            }
+        }
+        if (!ledgers.isEmpty()) {
+            stockLedgerRepository.saveAll(ledgers);
+        }
+    }
 
     private BulkUploadRow createUploadRowSnapshot(BulkUpload upload, Row row, int excelRowNum) {
         return BulkUploadRow.builder()
@@ -387,16 +469,32 @@ public class BulkImportService {
         }
     }
 
+    /**
+     * Accepted formats:
+     *   .xlsx — Excel 2007+ (recommended, BillPro template)
+     *   .xls  — Excel 97-2003 (legacy, auto-detected via WorkbookFactory)
+     *   .csv  — Comma-separated values (header row on row 1, data from row 2)
+     */
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Upload file is empty");
         }
         String filename = file.getOriginalFilename();
-        if (filename == null || !filename.toLowerCase().endsWith(".xlsx")) {
-            throw new IllegalArgumentException(
-                    "Only .xlsx files are accepted. Received: " + filename
-                    + ". Do NOT upload .csv, .xls, or .ods files.");
+        if (filename == null) {
+            throw new IllegalArgumentException("Filename is missing. Please re-upload the file.");
         }
+        String lower = filename.toLowerCase();
+        if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls") && !lower.endsWith(".csv")) {
+            throw new IllegalArgumentException(
+                    "Unsupported file format: '" + filename + "'. "
+                    + "Accepted formats: .xlsx (recommended), .xls, .csv");
+        }
+    }
+
+    /** Returns true if the uploaded file is a CSV (plain text, not Excel) */
+    private boolean isCsvFile(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        return name != null && name.toLowerCase().endsWith(".csv");
     }
 
     /**
@@ -502,6 +600,74 @@ public class BulkImportService {
                 .build();
     }
 
+    /** Updates an existing product's details using Add Mode logic */
+    private void updateProductFromRow(Product product, Row row,
+                                      Map<String, Category> categoryCache,
+                                      Map<String, Supplier> supplierCache,
+                                      boolean autoCreateSuppliers, int excelRowNum) {
+        String name = getCellString(row, COL_NAME);
+        if (!name.isBlank()) product.setName(name);
+
+        String categoryName = getCellString(row, COL_CATEGORY);
+        if (!categoryName.isBlank()) product.setCategory(categoryCache.computeIfAbsent(categoryName, this::findOrCreateCategory));
+
+        String unit = getCellString(row, COL_UNIT);
+        if (!unit.isBlank()) product.setUnit(unit);
+
+        BigDecimal purchaseRate = parseBigDecimalRequired(row, COL_PURCHASE_RATE, "Purchase Rate (Column E)", excelRowNum);
+        BigDecimal mrp          = parseBigDecimalRequired(row, COL_MRP, "MRP/Selling Price (Column F)", excelRowNum);
+        
+        if (mrp.compareTo(purchaseRate) < 0) {
+            throw new IllegalArgumentException("MRP (" + mrp + ") must be ≥ Purchase Rate (" + purchaseRate + ")");
+        }
+        product.setPurchaseRate(purchaseRate);
+        product.setMrp(mrp);
+        product.setSellingPrice(mrp);
+
+        BigDecimal gstRate = parseBigDecimalRequired(row, COL_GST_RATE, "GST % (Column G)", excelRowNum);
+        BigDecimal gstRounded = gstRate.stripTrailingZeros().setScale(0, java.math.RoundingMode.UNNECESSARY);
+        if (!VALID_GST_RATES.contains(gstRate) && !VALID_GST_RATES.contains(gstRounded)) {
+            throw new IllegalArgumentException("Invalid GST rate: " + gstRate + ". Must be one of: 0, 5, 12, 18, 28");
+        }
+        product.setGstRate(gstRate);
+
+        String hsnCode = getCellString(row, COL_HSN_CODE);
+        if (!hsnCode.isBlank()) product.setHsnCode(hsnCode);
+
+        // Supplier update logic
+        String supplierName = getCellString(row, COL_SUPPLIER_NAME);
+        if (!supplierName.isBlank()) {
+            Supplier primarySupplier = supplierCache.get(supplierName.toLowerCase());
+            if (primarySupplier == null) {
+                if (autoCreateSuppliers) {
+                    primarySupplier = supplierRepository.save(Supplier.builder().name(supplierName).build());
+                    supplierCache.put(supplierName.toLowerCase(), primarySupplier);
+                } else {
+                    throw new IllegalArgumentException("Supplier '" + supplierName + "' not found in system.");
+                }
+            }
+            product.setPrimarySupplier(primarySupplier);
+        }
+
+        BigDecimal minStock = parseBigDecimalOptional(row, COL_MIN_STOCK);
+        if (minStock != null) product.setMinStock(minStock);
+
+        String description = getCellString(row, COL_DESCRIPTION);
+        String brand = getCellString(row, COL_BRAND);
+        String expiry = getCellString(row, COL_EXPIRY);
+
+        if (!expiry.isBlank()) {
+            description = description.isBlank() ? "Shelf Life: " + expiry : description + " | Shelf Life: " + expiry;
+        }
+        if (!description.isBlank()) product.setDescription(description);
+        if (!brand.isBlank()) product.setBrand(brand);
+
+        String activeCell = getCellString(row, COL_ACTIVE).toUpperCase().trim();
+        if (!activeCell.isBlank()) {
+            product.setIsActive(!activeCell.equals("NO"));
+        }
+    }
+
     /** Find category by name (case-insensitive) OR create it automatically */
     private Category findOrCreateCategory(String name) {
         return categoryRepository.findByNameIgnoreCase(name)
@@ -567,5 +733,381 @@ public class BulkImportService {
             }
         }
         return true;
+    }
+
+    // ─── CSV Import ─────────────────────────────────────────────────────────────
+
+    /**
+     * Imports products from a CSV file.
+     *
+     * CSV format expected:
+     *   Row 1: Header row  (same column names as the XLSX template — skipped automatically)
+     *   Row 2+: Data rows
+     *
+     * Column order MUST match the XLSX template (columns A–O):
+     *   Product Name, SKU/Barcode, Category, UoM, Purchase Rate, MRP,
+     *   GST%, HSN Code, Opening Stock, Min Stock, Description, Brand,
+     *   Supplier Name, Expiry, Active
+     *
+     * The method shares ALL business logic with the Excel path via String[] overloads.
+     */
+    @SuppressWarnings("java:S107")
+    private BulkImportResponseDTO importFromCsv(
+            MultipartFile file,
+            BulkUpload upload,
+            List<String>  skippedSkus,
+            List<String>  errors,
+            List<Product> batch,
+            List<BulkUploadRow> currentBatchRows,
+            List<BulkUploadRow> uploadRows,
+            Set<String>         supplierNamesInFile,
+            Map<String, Category> categoryCache,
+            Map<String, Supplier> supplierCache,
+            Set<String> existingSkus,
+            Set<String> existingBarcodes,
+            Map<String, Integer> barcodeCountInFile,
+            boolean autoCreateSuppliers) {
+
+        int successCount = 0, skippedCount = 0, totalRows = 0, duplicateBarcodeCount = 0;
+
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                     new java.io.InputStreamReader(file.getInputStream(),
+                             java.nio.charset.StandardCharsets.UTF_8));
+             CSVParser csvParser = CSVFormat.DEFAULT
+                     .builder()
+                     .setHeader()           // first row treated as header — auto-skipped
+                     .setSkipHeaderRecord(true)
+                     .setTrim(true)
+                     .setIgnoreEmptyLines(true)
+                     .setIgnoreSurroundingSpaces(true)
+                     .build()
+                     .parse(reader)) {
+
+            List<CSVRecord> records = csvParser.getRecords();
+            totalRows = records.size();
+
+            if (totalRows > MAX_ROWS) {
+                throw new IllegalArgumentException(
+                        "CSV has " + totalRows + " rows. BillPro max is "
+                        + MAX_ROWS + " rows per upload. Split into multiple files.");
+            }
+
+            log.info("CSV bulk import started — {} data rows", totalRows);
+
+            for (CSVRecord record : records) {
+                int csvRowNum = (int) record.getRecordNumber() + 1; // +1 for header row offset
+
+                // Convert CSVRecord to String[] (same length as TEMPLATE_HEADERS)
+                String[] cells = csvRecordToCells(record);
+
+                // Skip completely empty rows
+                if (isCellArrayEmpty(cells)) {
+                    totalRows--;
+                    continue;
+                }
+
+                BulkUploadRow uploadRow = createUploadRowSnapshotFromCells(upload, cells, csvRowNum);
+                uploadRows.add(uploadRow);
+                if (uploadRow.getSupplierName() != null && !uploadRow.getSupplierName().isBlank()) {
+                    supplierNamesInFile.add(uploadRow.getSupplierName());
+                }
+
+                try {
+                    String rawBarcode = uploadRow.getSkuBarcode() != null ? uploadRow.getSkuBarcode() : "";
+
+                    if (rawBarcode.isBlank()) {
+                        String msg = "SKU / Barcode (Column B) is required";
+                        errors.add("Row " + csvRowNum + ": " + msg);
+                        markUploadRow(uploadRow, "FAILED", msg, null);
+                        continue;
+                    }
+
+                    int occurrence = barcodeCountInFile.merge(rawBarcode, 1, Integer::sum);
+                    String sku = (occurrence == 1) ? rawBarcode : rawBarcode + "-DUP-" + occurrence;
+
+                    if (occurrence > 1 || existingBarcodes.contains(rawBarcode)) {
+                        duplicateBarcodeCount++;
+                    }
+
+                    Product product;
+                    if (existingSkus.contains(sku)) {
+                        product = productRepository.findBySku(sku)
+                                .orElseThrow(() -> new IllegalStateException("SKU exists but not found"));
+                        updateProductFromCells(product, cells, categoryCache, supplierCache,
+                                autoCreateSuppliers, csvRowNum);
+                        BigDecimal incomingStock = parseBigDecimalOptionalFromCell(cells[COL_OPENING_STOCK]);
+                        if (incomingStock != null && incomingStock.compareTo(BigDecimal.ZERO) > 0) {
+                            product.setCurrentStock(product.getCurrentStock().add(incomingStock));
+                            uploadRow.setOpeningStock(incomingStock);
+                        } else {
+                            uploadRow.setOpeningStock(BigDecimal.ZERO);
+                        }
+                    } else {
+                        product = mapCellsToProduct(cells, csvRowNum, sku, rawBarcode,
+                                categoryCache, supplierCache, autoCreateSuppliers);
+                        uploadRow.setOpeningStock(product.getCurrentStock() != null
+                                ? product.getCurrentStock() : BigDecimal.ZERO);
+                    }
+
+                    batch.add(product);
+                    currentBatchRows.add(uploadRow);
+                    markUploadRow(uploadRow, "SUCCESS", null, product);
+                    existingSkus.add(sku);
+                    existingBarcodes.add(rawBarcode);
+
+                    if (batch.size() == BATCH_SIZE) {
+                        productRepository.saveAll(batch);
+                        recordStockLedgerForBatch(currentBatchRows);
+                        successCount += batch.size();
+                        log.info("CSV batch saved — {} products so far", successCount);
+                        batch.clear();
+                        currentBatchRows.clear();
+                    }
+
+                } catch (Exception e) {
+                    errors.add("Row " + csvRowNum + ": " + e.getMessage());
+                    markUploadRow(uploadRow, "FAILED", e.getMessage(), null);
+                    log.warn("CSV row {} failed: {}", csvRowNum, e.getMessage());
+                }
+            }
+
+            if (!batch.isEmpty()) {
+                productRepository.saveAll(batch);
+                recordStockLedgerForBatch(currentBatchRows);
+                successCount += batch.size();
+            }
+
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Failed to read CSV file: " + e.getMessage());
+        }
+
+        upload.setTotalRows(totalRows);
+        upload.setSuccessCount(successCount);
+        upload.setSkippedCount(skippedCount);
+        upload.setFailedCount(errors.size());
+        upload.setDuplicateBarcodeCount(duplicateBarcodeCount);
+        upload.setStatus(resolveUploadStatus(successCount, skippedCount, errors.size()));
+        bulkUploadRepository.save(upload);
+        bulkUploadRowRepository.saveAll(uploadRows);
+
+        log.info("CSV import complete — success={}, failed={}", successCount, errors.size());
+
+        return BulkImportResponseDTO.builder()
+                .bulkUploadId(upload.getId())
+                .status(upload.getStatus())
+                .totalRows(totalRows)
+                .successCount(successCount)
+                .skippedCount(skippedCount)
+                .failedCount(errors.size())
+                .duplicateBarcodeCount(duplicateBarcodeCount)
+                .skippedSkus(skippedSkus)
+                .errors(errors)
+                .build();
+    }
+
+    // ─── CSV Helper Methods ──────────────────────────────────────────────────────
+
+    /**
+     * Converts a CSVRecord to a String[] with exactly TEMPLATE_HEADERS.length slots.
+     * Missing columns are filled with "". Handles files with fewer columns gracefully.
+     */
+    private String[] csvRecordToCells(CSVRecord record) {
+        String[] cells = new String[TEMPLATE_HEADERS.length];
+        Arrays.fill(cells, "");
+        for (int i = 0; i < TEMPLATE_HEADERS.length && i < record.size(); i++) {
+            String val = record.get(i);
+            cells[i] = val != null ? val.trim() : "";
+        }
+        return cells;
+    }
+
+    private boolean isCellArrayEmpty(String[] cells) {
+        for (String cell : cells) {
+            if (cell != null && !cell.isBlank()) return false;
+        }
+        return true;
+    }
+
+    private BulkUploadRow createUploadRowSnapshotFromCells(BulkUpload upload, String[] c, int rowNum) {
+        return BulkUploadRow.builder()
+                .upload(upload)
+                .rowNumber(rowNum)
+                .status("PENDING")
+                .productName(c[COL_NAME])
+                .skuBarcode(c[COL_SKU])
+                .category(c[COL_CATEGORY])
+                .unitOfMeasure(c[COL_UNIT])
+                .purchaseRate(parseBigDecimalOptionalFromCell(c[COL_PURCHASE_RATE]))
+                .mrp(parseBigDecimalOptionalFromCell(c[COL_MRP]))
+                .gstRate(parseBigDecimalOptionalFromCell(c[COL_GST_RATE]))
+                .hsnCode(c[COL_HSN_CODE])
+                .openingStock(parseBigDecimalOptionalFromCell(c[COL_OPENING_STOCK]))
+                .minStock(parseBigDecimalOptionalFromCell(c[COL_MIN_STOCK]))
+                .description(c[COL_DESCRIPTION])
+                .brand(c[COL_BRAND])
+                .supplierName(c[COL_SUPPLIER_NAME])
+                .expiry(c[COL_EXPIRY])
+                .active(c[COL_ACTIVE])
+                .build();
+    }
+
+    /** Maps a String[] (from CSV) to a new Product entity — mirrors mapRowToProduct exactly. */
+    private Product mapCellsToProduct(String[] c, int rowNum, String sku, String rawBarcode,
+                                       Map<String, Category> categoryCache,
+                                       Map<String, Supplier> supplierCache,
+                                       boolean autoCreateSuppliers) {
+        String name = c[COL_NAME];
+        if (name.isBlank()) throw new IllegalArgumentException("Product Name (Column A) is required");
+
+        String categoryName = c[COL_CATEGORY];
+        if (categoryName.isBlank()) throw new IllegalArgumentException("Category (Column C) is required");
+        Category category = categoryCache.computeIfAbsent(categoryName, this::findOrCreateCategory);
+
+        String unit = c[COL_UNIT];
+        if (unit.isBlank()) throw new IllegalArgumentException("Unit of Measure (Column D) is required");
+
+        BigDecimal purchaseRate = parseBigDecimalRequiredFromCell(c[COL_PURCHASE_RATE], "Purchase Rate (Column E)");
+        BigDecimal mrp          = parseBigDecimalRequiredFromCell(c[COL_MRP], "MRP/Selling Price (Column F)");
+
+        if (mrp.compareTo(purchaseRate) < 0) {
+            throw new IllegalArgumentException(
+                    "MRP (" + mrp + ") must be \u2265 Purchase Rate (" + purchaseRate + ")");
+        }
+
+        BigDecimal gstRate    = parseBigDecimalRequiredFromCell(c[COL_GST_RATE], "GST % (Column G)");
+        BigDecimal gstRounded = gstRate.stripTrailingZeros().setScale(0, java.math.RoundingMode.UNNECESSARY);
+        if (!VALID_GST_RATES.contains(gstRate) && !VALID_GST_RATES.contains(gstRounded)) {
+            throw new IllegalArgumentException(
+                    "Invalid GST rate: " + gstRate + ". Must be one of: 0, 5, 12, 18, 28");
+        }
+
+        String hsnCode = c[COL_HSN_CODE];
+        if (hsnCode.isBlank()) throw new IllegalArgumentException("HSN Code (Column H) is required");
+
+        String supplierName = c[COL_SUPPLIER_NAME];
+        if (supplierName.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Supplier Name (Column M) is required for traceability.");
+        }
+
+        Supplier primarySupplier = supplierCache.get(supplierName.toLowerCase());
+        if (primarySupplier == null) {
+            if (autoCreateSuppliers) {
+                primarySupplier = supplierRepository.save(Supplier.builder().name(supplierName).build());
+                supplierCache.put(supplierName.toLowerCase(), primarySupplier);
+            } else {
+                throw new IllegalArgumentException(
+                        "Supplier '" + supplierName + "' (Column M) not found. "
+                        + "Add it in Suppliers module first.");
+            }
+        }
+
+        BigDecimal openingStock = parseBigDecimalOptionalFromCell(c[COL_OPENING_STOCK]);
+        BigDecimal minStock     = parseBigDecimalOptionalFromCell(c[COL_MIN_STOCK]);
+        String description      = c[COL_DESCRIPTION];
+        String expiry           = c[COL_EXPIRY];
+        if (!expiry.isBlank()) {
+            description = description.isBlank() ? "Expiry: " + expiry : description + " | Expiry: " + expiry;
+        }
+        String activeStr = c[COL_ACTIVE];
+        boolean isActive = activeStr.isBlank() || activeStr.equalsIgnoreCase("YES") || activeStr.equalsIgnoreCase("Y");
+
+        return Product.builder()
+                .name(name)
+                .sku(sku)
+                .barcode(rawBarcode)
+                .category(category)
+                .primarySupplier(primarySupplier)
+                .unit(unit)
+                .purchaseRate(purchaseRate)
+                .mrp(mrp)
+                .sellingPrice(mrp)
+                .gstRate(gstRate)
+                .hsnCode(hsnCode)
+                .currentStock(openingStock != null ? openingStock : BigDecimal.ZERO)
+                .minStock(minStock != null ? minStock : BigDecimal.ZERO)
+                .description(description.isBlank() ? null : description)
+                .brand(c[COL_BRAND].isBlank() ? null : c[COL_BRAND])
+                .isActive(isActive)
+                .build();
+    }
+
+    /** Updates an existing Product from a CSV String[] — mirrors updateProductFromRow. */
+    private void updateProductFromCells(Product product, String[] c,
+                                         Map<String, Category> categoryCache,
+                                         Map<String, Supplier> supplierCache,
+                                         boolean autoCreateSuppliers, int rowNum) {
+        String name = c[COL_NAME];
+        if (!name.isBlank()) product.setName(name);
+
+        String categoryName = c[COL_CATEGORY];
+        if (!categoryName.isBlank()) {
+            product.setCategory(categoryCache.computeIfAbsent(categoryName, this::findOrCreateCategory));
+        }
+
+        String unit = c[COL_UNIT];
+        if (!unit.isBlank()) product.setUnit(unit);
+
+        BigDecimal mrp = parseBigDecimalOptionalFromCell(c[COL_MRP]);
+        if (mrp != null) {
+            product.setMrp(mrp);
+            product.setSellingPrice(mrp);
+        }
+
+        BigDecimal purchaseRate = parseBigDecimalOptionalFromCell(c[COL_PURCHASE_RATE]);
+        if (purchaseRate != null) product.setPurchaseRate(purchaseRate);
+
+        BigDecimal gstRate = parseBigDecimalOptionalFromCell(c[COL_GST_RATE]);
+        if (gstRate != null) product.setGstRate(gstRate);
+
+        String hsnCode = c[COL_HSN_CODE];
+        if (!hsnCode.isBlank()) product.setHsnCode(hsnCode);
+
+        BigDecimal minStock = parseBigDecimalOptionalFromCell(c[COL_MIN_STOCK]);
+        if (minStock != null) product.setMinStock(minStock);
+
+        String description = c[COL_DESCRIPTION];
+        String expiry = c[COL_EXPIRY];
+        if (!expiry.isBlank()) {
+            description = description.isBlank() ? "Expiry: " + expiry : description + " | Expiry: " + expiry;
+        }
+        if (!description.isBlank()) product.setDescription(description);
+
+        String brand = c[COL_BRAND];
+        if (!brand.isBlank()) product.setBrand(brand);
+
+        String supplierName = c[COL_SUPPLIER_NAME];
+        if (!supplierName.isBlank()) {
+            Supplier supplier = supplierCache.get(supplierName.toLowerCase());
+            if (supplier == null && autoCreateSuppliers) {
+                supplier = supplierRepository.save(Supplier.builder().name(supplierName).build());
+                supplierCache.put(supplierName.toLowerCase(), supplier);
+            }
+            if (supplier != null) product.setPrimarySupplier(supplier);
+        }
+    }
+
+    /** Parse required BigDecimal from a CSV cell string */
+    private BigDecimal parseBigDecimalRequiredFromCell(String val, String fieldName) {
+        if (val == null || val.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " is required but empty");
+        }
+        try {
+            return new BigDecimal(val.replace(",", "").replace("\u20b9", "").trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    fieldName + " has invalid value '" + val
+                    + "'. Use plain numbers only (e.g. 250.00)");
+        }
+    }
+
+    /** Parse optional BigDecimal from a CSV cell string — returns null if blank */
+    private BigDecimal parseBigDecimalOptionalFromCell(String val) {
+        if (val == null || val.isBlank()) return null;
+        try {
+            return new BigDecimal(val.replace(",", "").replace("\u20b9", "").trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

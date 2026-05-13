@@ -25,6 +25,8 @@ public class BulkUploadHistoryService {
     private final BulkUploadRepository bulkUploadRepository;
     private final BulkUploadRowRepository bulkUploadRowRepository;
     private final BulkUploadTemplateRepository templateRepository;
+    private final com.Billing_System.repository.ProductRepository productRepository;
+    private final com.Billing_System.repository.StockLedgerRepository stockLedgerRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -82,6 +84,47 @@ public class BulkUploadHistoryService {
 
         // Finally delete the main upload record
         bulkUploadRepository.delete(upload);
+    }
+
+    @Transactional
+    public void undoUpload(UUID uploadId) {
+        BulkUpload upload = bulkUploadRepository.findById(uploadId)
+                .orElseThrow(() -> new IllegalArgumentException("Bulk upload not found: " + uploadId));
+
+        if ("REVERTED".equals(upload.getStatus())) {
+            throw new IllegalStateException("This upload has already been reverted.");
+        }
+
+        List<BulkUploadRow> rows = bulkUploadRowRepository.findByUploadIdOrderByRowNumberAsc(uploadId);
+        List<com.Billing_System.entity.StockLedger> ledgers = new java.util.ArrayList<>();
+        List<com.Billing_System.entity.Product> productsToUpdate = new java.util.ArrayList<>();
+
+        for (BulkUploadRow row : rows) {
+            if ("SUCCESS".equals(row.getStatus()) && row.getProduct() != null && row.getOpeningStock() != null && row.getOpeningStock().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                com.Billing_System.entity.Product product = row.getProduct();
+                product.setCurrentStock(product.getCurrentStock().subtract(row.getOpeningStock()));
+                productsToUpdate.add(product);
+
+                ledgers.add(com.Billing_System.entity.StockLedger.builder()
+                        .product(product)
+                        .transactionType("UNDO_UPLOAD")
+                        .quantityOut(row.getOpeningStock())
+                        .balanceStock(product.getCurrentStock())
+                        .transactionDate(java.time.LocalDateTime.now())
+                        .reason("Reverted Bulk Upload")
+                        .build());
+            }
+        }
+
+        if (!productsToUpdate.isEmpty()) {
+            productRepository.saveAll(productsToUpdate);
+        }
+        if (!ledgers.isEmpty()) {
+            stockLedgerRepository.saveAll(ledgers);
+        }
+
+        upload.setStatus("REVERTED");
+        bulkUploadRepository.save(upload);
     }
 
     private BulkUploadHistoryDTO toHistoryDTO(BulkUpload upload) {

@@ -39,6 +39,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle workflow/state violations (e.g. vendor already onboarded, already reverted)
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), null);
+    }
+
+    /**
      * Handle stock-out or other status exceptions (e.g., 422 Unprocessable Entity)
      */
     @ExceptionHandler(ResponseStatusException.class)

@@ -1,0 +1,459 @@
+{
+	"info": {
+		"_postman_id": "vendor-sec-2026-001",
+		"name": "Vendor & Security API Suite (Section 1-8)",
+		"description": "Comprehensive Postman collection covering Vendor Master, KYC, Reverse Auctions, Advanced Inventory (Bin/STO), and Blockchain Security (Section 8). Built for frontend integration.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth & Core Setup",
+			"item": [
+				{
+					"name": "Login (To get Token)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@shop.com\",\n    \"password\": \"admin123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Use this to login and retrieve the JWT Bearer Token. Store this token in the 'token' environment variable."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "1. Vendor Master & KYC (Section 1)",
+			"item": [
+				{
+					"name": "Create Single Vendor",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"legalName\": \"Amul Dairy Products Private Limited\",\n    \"tradeName\": \"Amul\",\n    \"gstin\": \"24AAAAA0000A1Z5\",\n    \"pan\": \"AAAAA0000A\",\n    \"businessType\": \"MANUFACTURER\",\n    \"primaryMobile\": \"9876543210\",\n    \"primaryEmail\": \"procurement@amul.com\",\n    \"gstRegistrationType\": \"REGULAR\",\n    \"annualTurnoverBracket\": \"ABOVE_1CR\",\n    \"websiteUrl\": \"https://www.amul.com\",\n    \"notes\": \"Primary dairy distributor\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/vendors",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vendors"
+							]
+						},
+						"description": "Onboards a single vendor with full KYC verification check."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Vendor Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/vendors/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vendors",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "<vendor-uuid>"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Download Bulk Upload Excel Template",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/vendors/bulk/template",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vendors",
+								"bulk",
+								"template"
+							]
+						},
+						"description": "Generates and downloads a stylized excel template (.xlsx) with dropdown valid values, coloring, and headers."
+					},
+					"response": []
+				},
+				{
+					"name": "Execute Bulk Import (Excel)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/vendors/bulk/import",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"vendors",
+								"bulk",
+								"import"
+							]
+						},
+						"description": "Uploads a completed excel sheet. System handles validation, records successful rows, and outputs descriptive row-by-row error arrays in JSON response."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Reverse Auctions (Section 2.4)",
+			"item": [
+				{
+					"name": "Create Active Auction (REST)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "{{adminUserId}}",
+								"description": "UUID of the Admin/Manager creating the auction",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"productId\": \"<product-uuid>\",\n    \"quantity\": 1000.00,\n    \"ceilingPrice\": 500.00\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auctions",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auctions"
+							]
+						},
+						"description": "Creates a public reverse auction session with a maximum Ceiling Price per unit."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Active Auctions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auctions",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auctions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "WebSocket Instructions (Bidding)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "ws://localhost:8080/ws-auction",
+							"protocol": "ws",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"ws-auction"
+							]
+						},
+						"description": "WEB SOCKET INSTRUCTIONS FOR FRONTEND:\n\n1. Handshake: `ws://localhost:8080/ws-auction` (or SockJS fallback).\n\n2. Subscribe to Live Price Updates:\nPath: `/topic/auctions/{auctionId}`\nPayload received: \n{\n    \"auctionId\": \"...\",\n    \"newLowestPrice\": 450.00,\n    \"vendorName\": \"Amul\",\n    \"timestamp\": \"2026-05-13...\"\n}\n\n3. Send New Bid (Over STOMP):\nDestination: `/app/auction/bid`\nPayload body:\n{\n    \"auctionId\": \"<uuid>\",\n    \"vendorId\": \"<uuid>\",\n    \"bidAmount\": 450.00\n}"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Advanced Inventory & STO (Section 4)",
+			"item": [
+				{
+					"name": "Create Warehouse Bin Location",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "{{adminUserId}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"warehouseName\": \"Main Hub East\",\n    \"zoneCode\": \"A\",\n    \"rackNumber\": \"12\",\n    \"levelNumber\": \"3\",\n    \"binNumber\": \"04\",\n    \"maxCapacity\": 5000.00\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inventory/bins",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inventory",
+								"bins"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Stock Transfer Order (STO)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "{{adminUserId}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sourceBranchId\": \"<source-branch-uuid>\",\n    \"destinationBranchId\": \"<dest-branch-uuid>\",\n    \"productId\": \"<product-uuid>\",\n    \"quantityRequested\": 250.00,\n    \"shippingCost\": 150.00,\n    \"estimatedArrival\": \"2026-05-20T12:00:00\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/inventory/sto",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inventory",
+								"sto"
+							]
+						},
+						"description": "Creates an STO to shift stock internally. Auto-calculates 'Capital Saved' and automatically writes to the Immutable Blockchain Audit Log."
+					},
+					"response": []
+				},
+				{
+					"name": "Update STO Status (Approve/Deliver)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "{{adminUserId}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/inventory/sto/:id/status?status=APPROVED",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"inventory",
+								"sto",
+								":id",
+								"status"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "APPROVED",
+									"description": "Lifecycle: APPROVED, IN_TRANSIT, DELIVERED, CANCELLED"
+								}
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "<sto-uuid>"
+								}
+							]
+						},
+						"description": "Updates the STO step-by-step. Requires the X-User-Id header to track who gave final clearance."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "4. Audit, Security & Anti-Fraud (Section 8)",
+			"item": [
+				{
+					"name": "View Immutable Blockchain Audit Log",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/security/audit-logs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"security",
+								"audit-logs"
+							]
+						},
+						"description": "Returns the sequential ledger of SHA-256 chained blocks for all STO & Inventory movements. Guaranteed tamper-proof."
+					},
+					"response": []
+				},
+				{
+					"name": "Trigger Anti-Fraud Scanner (Manual Run)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/security/trigger-fraud-scan",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"security",
+								"trigger-fraud-scan"
+							]
+						},
+						"description": "Manually triggers the nightly cron scanner to search for VENDOR-EMPLOYEE Email collisions and generates 'CRITICAL' severity FraudAlert items."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Active Fraud Alerts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/security/fraud-alerts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"security",
+								"fraud-alerts"
+							]
+						},
+						"description": "Retrieves the logged dashboard of fraud flags, properly mapped to exclude Lazy Loading entity loops."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "<paste-your-jwt-here>",
+			"type": "string"
+		},
+		{
+			"key": "adminUserId",
+			"value": "<paste-admin-user-uuid-here>",
+			"type": "string"
+		}
+	]
+}

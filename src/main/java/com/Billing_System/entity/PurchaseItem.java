@@ -32,6 +32,10 @@ public class PurchaseItem {
     @Column(name = "quantity", nullable = false, precision = 10, scale = 3)
     private BigDecimal quantity;
 
+    @Builder.Default
+    @Column(name = "received_quantity", precision = 10, scale = 3)
+    private BigDecimal receivedQuantity = BigDecimal.ZERO;
+
     @Column(name = "purchase_rate", nullable = false, precision = 10, scale = 2)
     private BigDecimal purchaseRate;
 

@@ -14,7 +14,7 @@ import java.io.IOException;
  *   Right-click this file → Run 'GenerateBulkUploadTestFile.main()'
  *
  * OUTPUT:
- *   D:\Billing-System\test_bulk_upload.xlsx
+ *   D:\Billing-System\test_bulk_upload_2.xlsx
  *
  * FORMAT (matches BillPro Products template exactly):
  *   Row 1: Legend banner (colour-coded) — DO NOT EDIT
@@ -24,7 +24,7 @@ import java.io.IOException;
  */
 public class GenerateBulkUploadTestFile {
 
-    private static final String OUTPUT_PATH = "D:\\Billing-System\\test_bulk_upload.xlsx";
+    private static final String OUTPUT_PATH = "D:\\Billing-System\\test_bulk_upload_2.xlsx";
 
     // Column headers — must match BillPro Products template exactly
     private static final String[] HEADERS = {
@@ -48,29 +48,29 @@ public class GenerateBulkUploadTestFile {
     // Dummy data: { name, sku, category, unit, purchaseRate, mrp, gstRate, hsnCode,
     //               openingStock, minStock, description, brand, supplier, expiry, active }
     private static final String[][] PRODUCTS = {
-            {"Amul Butter 500g",      "SKU-1001", "Dairy",       "Pcs", "215", "250", "12", "0405", "50",  "10", "Fresh salted butter", "Amul",           "Gujarat Coop",  "6 months",  "YES"},
-            {"Amul Milk 1L",          "SKU-1002", "Dairy",       "Ltr", "52",  "60",  "5",  "0401", "200", "30", "Full cream milk",      "Amul",           "Gujarat Coop",  "2 days",    "YES"},
-            {"Tata Salt 1Kg",         "SKU-1003", "Grocery",     "Kg",  "18",  "22",  "5",  "2501", "100", "20", "Iodised salt",         "Tata",           "Tata Consumer", "24 months", "YES"},
-            {"Fortune Sunflower Oil 1L","SKU-1004","Grocery",    "Ltr", "110", "135", "5",  "1512", "80",  "15", "Refined sunflower oil", "Fortune",        "Adani Wilmar",  "12 months", "YES"},
-            {"Basmati Rice 1Kg",      "SKU-1005", "Grocery",     "Kg",  "85",  "110", "5",  "1006", "150", "25", "Premium basmati rice",  "India Gate",     "KRBL Ltd",      "18 months", "YES"},
-            {"Britannia Biscuit 100g","SKU-1006", "Snacks",      "Pcs", "20",  "25",  "18", "1905", "200", "40", "Good Day cashew",       "Britannia",      "Britannia Ind", "6 months",  "YES"},
-            {"Maggi Noodles 70g",     "SKU-1007", "Snacks",      "Pcs", "12",  "15",  "18", "1902", "300", "50", "Masala flavour",        "Maggi",          "Nestle India",  "12 months", "YES"},
-            {"Colgate Toothpaste 200g","SKU-1008","Personal Care","Pcs", "95",  "120", "18", "3306", "80",  "15", "Strong teeth formula",  "Colgate",        "Colgate-Palmo", "24 months", "YES"},
-            {"Dettol Soap 100g",      "SKU-1009", "Personal Care","Pcs", "38",  "50",  "18", "3401", "120", "20", "Antibacterial soap",    "Dettol",         "Reckitt",       "24 months", "YES"},
-            {"Surf Excel 500g",       "SKU-1010", "Household",   "Pcs", "85",  "105", "18", "3402", "60",  "10", "Quick wash detergent",  "Surf Excel",     "HUL",           "24 months", "YES"},
-            {"Parle-G Biscuit 200g",  "SKU-1011", "Snacks",      "Pcs", "15",  "20",  "18", "1905", "500", "80", "Classic glucose biscuit","Parle",         "Parle Products","6 months",  "YES"},
-            {"Coca Cola 500ml",       "SKU-1012", "Beverages",   "Pcs", "22",  "30",  "28", "2202", "100", "20", "Chilled cola drink",    "Coca Cola",      "HCCB",          "6 months",  "YES"},
-            {"Lay's Chips 26g",       "SKU-1013", "Snacks",      "Pcs", "18",  "20",  "12", "2008", "200", "30", "Classic salted chips",  "Lays",           "PepsiCo India", "4 months",  "YES"},
-            {"Horlicks 200g",         "SKU-1014", "Beverages",   "Pcs", "110", "140", "18", "1901", "50",  "10", "Health drink powder",   "Horlicks",       "HUL",           "18 months", "YES"},
-            {"Vim Dish Wash 500ml",   "SKU-1015", "Household",   "Pcs", "55",  "75",  "18", "3402", "70",  "10", "Lemon dishwash liquid",  "Vim",           "HUL",           "24 months", "YES"},
-            {"Cadbury Dairy Milk 40g","SKU-1016", "Confectionery","Pcs", "28",  "40",  "18", "1806", "150", "25", "Milk chocolate bar",    "Cadbury",        "Mondelez",      "12 months", "YES"},
-            {"Aashirvaad Atta 5Kg",   "SKU-1017", "Grocery",     "Pcs", "210", "260", "5",  "1101", "30",  "5",  "Whole wheat flour",     "Aashirvaad",     "ITC Ltd",       "6 months",  "YES"},
-            {"Pepsodent Brush",        "SKU-1018","Personal Care","Pcs", "25",  "35",  "18", "9603", "100", "20", "Soft bristle brush",    "Pepsodent",      "HUL",           "36 months", "YES"},
-            {"Lifebuoy Soap 100g",    "SKU-1019", "Personal Care","Pcs", "28",  "40",  "18", "3401", "90",  "15", "Red health soap",       "Lifebuoy",       "HUL",           "24 months", "YES"},
-            {"Haldiram Bhujia 200g",  "SKU-1020", "Snacks",      "Pcs", "60",  "80",  "12", "2008", "100", "20", "Crispy sev bhujia",     "Haldirams",      "Haldirams",     "6 months",  "YES"},
+            {"Nandini Curd 500g",     "SKU-4001", "Dairy",       "Pcs", "32",  "45",  "5",  "0403", "90",  "15", "Set curd pack",          "Nandini",        "KMF Dairy",     "5 days",    "YES"},
+            {"Mother Dairy Paneer 200g","SKU-4002","Dairy",      "Pcs", "72",  "95",  "5",  "0406", "60",  "10", "Fresh paneer block",     "Mother Dairy",   "Mother Dairy",  "7 days",    "YES"},
+            {"Saffola Gold Oil 1L",   "SKU-4003", "Grocery",     "Ltr", "142", "175", "5",  "1512", "75",  "12", "Blended edible oil",     "Saffola",        "Marico",        "12 months", "YES"},
+            {"Daawat Rozana Rice 5Kg", "SKU-4004", "Grocery",    "Bag", "390", "475", "5",  "1006", "40",  "8",  "Everyday basmati rice",  "Daawat",         "LT Foods",      "18 months", "YES"},
+            {"Catch Turmeric Powder 200g","SKU-4005","Spices",   "Pcs", "48",  "68",  "5",  "0910", "85",  "15", "Haldi powder",           "Catch",          "DS Group",      "12 months", "YES"},
+            {"Everest Garam Masala 100g","SKU-4006","Spices",    "Pcs", "52",  "75",  "5",  "0910", "70",  "12", "Spice mix pouch",        "Everest",        "Everest Foods", "12 months", "YES"},
+            {"Kellogg's Corn Flakes 475g","SKU-4007","Breakfast","Pcs", "145", "190", "18", "1904", "45",  "8",  "Breakfast cereal",       "Kelloggs",       "Kelloggs India","9 months",  "YES"},
+            {"MTR Poha 500g",         "SKU-4008", "Breakfast",   "Pcs", "46",  "62",  "5",  "1904", "100", "20", "Flattened rice pack",    "MTR",            "MTR Foods",     "9 months",  "YES"},
+            {"Real Mixed Fruit Juice 1L","SKU-4009","Beverages", "Ltr", "82",  "115", "12", "2009", "55",  "10", "Fruit juice carton",     "Real",           "Dabur",         "6 months",  "YES"},
+            {"Tropicana Orange Juice 1L","SKU-4010","Beverages", "Ltr", "88",  "125", "12", "2009", "50",  "10", "Orange juice carton",    "Tropicana",      "PepsiCo India", "6 months",  "YES"},
+            {"Bingo Mad Angles 80g",  "SKU-4011", "Snacks",      "Pcs", "25",  "35",  "12", "2008", "180", "35", "Masala corn snack",      "Bingo",          "ITC Ltd",       "5 months",  "YES"},
+            {"Kurkure Masala Munch 90g","SKU-4012","Snacks",     "Pcs", "24",  "35",  "12", "2008", "190", "35", "Crunchy snack pack",     "Kurkure",        "PepsiCo India", "5 months",  "YES"},
+            {"Nivea Body Lotion 400ml","SKU-4013","Personal Care","Pcs", "255", "365", "18", "3304", "35",  "6",  "Moisturising lotion",    "Nivea",          "Beiersdorf",    "24 months", "YES"},
+            {"Himalaya Face Wash 100ml","SKU-4014","Personal Care","Pcs","92",  "145", "18", "3304", "65",  "10", "Neem face wash",         "Himalaya",       "Himalaya Wellness","24 months","YES"},
+            {"Lizol Floor Cleaner 1L", "SKU-4015", "Household",   "Ltr", "128", "190", "18", "3402", "52",  "8",  "Disinfectant cleaner",   "Lizol",          "Reckitt",       "24 months", "YES"},
+            {"Harpic Bathroom Cleaner 500ml","SKU-4016","Household","Pcs","74", "110", "18", "3402", "58",  "8",  "Bathroom cleaner",       "Harpic",         "Reckitt",       "24 months", "YES"},
+            {"Classmate Notebook 172 Pages","SKU-4017","Stationery","Pcs","38","60",  "12", "4820", "120", "25", "Ruled notebook",         "Classmate",      "ITC Ltd",       "36 months", "YES"},
+            {"Cello Butterflow Pen Blue","SKU-4018","Stationery", "Pcs", "6",   "10",  "12", "9608", "300", "50", "Ball pen blue ink",      "Cello",          "BIC Cello",     "36 months", "YES"},
+            {"Duracell AA Battery 4pc","SKU-4019", "Electronics", "Pcs", "92",  "150", "18", "8506", "45",  "8",  "Alkaline battery pack",  "Duracell",       "Duracell India","36 months", "YES"},
+            {"Philips LED Bulb 9W",   "SKU-4020", "Electronics", "Pcs", "78",  "135", "12", "8539", "70",  "12", "Cool daylight bulb",     "Philips",        "Signify",       "24 months", "YES"},
             // --- Intentional ERROR rows (for testing error handling) ---
-            {"Error Test - Bad GST",  "SKU-ERR1", "Grocery",     "Pcs", "50",  "80",  "15", "1006", "",    "",   "",                      "",               "",              "",          "YES"},
-            {"Error Test - MRP Low",  "SKU-ERR2", "Grocery",     "Pcs", "100", "80",  "5",  "1006", "",    "",   "",                      "",               "",              "",          "YES"},
+            {"Error Test - Bad GST",  "SKU-ERR5", "Grocery",     "Pcs", "50",  "80",  "15", "1006", "",    "",   "",                      "",               "",              "",          "YES"},
+            {"Error Test - MRP Low",  "SKU-ERR6", "Grocery",     "Pcs", "100", "80",  "5",  "1006", "",    "",   "",                      "",               "",              "",          "YES"},
     };
 
     public static void main(String[] args) throws IOException {
@@ -109,7 +109,7 @@ public class GenerateBulkUploadTestFile {
             // ── ROW 3: Sample Row (blue italic — user must delete before upload) ──
             Row sampleRow = sheet.createRow(2);
             sampleRow.setHeightInPoints(18);
-            String[] sample = {"Basmati Rice 1Kg","SKU-0001","Grocery","Kg","42","58","5","1006","20","5","Premium basmati","India Gate","Kohinoor Foods","18 months","YES"};
+            String[] sample = {"Sample Product","SKU-4000","Grocery","Pcs","42","58","5","1006","20","5","Sample description","Sample Brand","Sample Supplier","18 months","YES"};
             for (int i = 0; i < sample.length; i++) {
                 Cell cell = sampleRow.createCell(i);
                 cell.setCellValue(sample[i]);

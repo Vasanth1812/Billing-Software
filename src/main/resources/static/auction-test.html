@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Reverse Auction</title>
+    <!-- We load SockJS and STOMP libraries to handle the WebSocket magic -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 500px; margin-bottom: 20px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #218838; }
+        #logs { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 4px; height: 150px; overflow-y: auto; font-family: monospace; }
+        .red-flash { animation: flashRed 1s; }
+        @keyframes flashRed { 0% { background-color: #ffcccc; } 100% { background-color: white; } }
+    </style>
+</head>
+<body>
+
+    <div class="card" id="auctionCard">
+        <h2>🍎 Live Vendor Auction</h2>
+        
+        <label>Auction ID:</label>
+        <input type="text" id="auctionId" placeholder="Paste Auction UUID here">
+        
+        <label>Your Vendor ID:</label>
+        <input type="text" id="vendorId" placeholder="Paste your Vendor UUID here">
+        
+        <button onclick="connectToAuction()">Connect to Live Stream</button>
+    </div>
+
+    <div class="card" id="biddingCard" style="display:none;">
+        <h3 style="color: #d9534f;">Current Lowest Bid: ₹<span id="lowestPrice">--</span></h3>
+        <label>Place New Bid (₹):</label>
+        <input type="number" id="bidAmount" placeholder="Must be lower than current price">
+        
+        <button onclick="placeBid()" style="background: #007bff;">Submit Bid</button>
+    </div>
+
+    <h3>Live Server Broadcasts:</h3>
+    <div id="logs">Waiting to connect...<br></div>
+
+    <script>
+        var stompClient = null;
+
+        function logMsg(message) {
+            document.getElementById('logs').innerHTML += message + "<br>";
+            document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;
+        }
+
+        function connectToAuction() {
+            var auctionId = document.getElementById('auctionId').value;
+            if(!auctionId) { alert("Please enter Auction ID"); return; }
+
+            // 1. Connect to our Spring Boot WebSocket endpoint
+            var socket = new SockJS('/ws-auction');
+            stompClient = Stomp.over(socket);
+            
+            // Turn off STOMP console debug logs to keep it clean
+            stompClient.debug = null;
+
+            logMsg("Attempting connection to server...");
+
+            stompClient.connect({}, function (frame) {
+                logMsg("✅ Connected successfully!");
+                document.getElementById('biddingCard').style.display = "block";
+
+                // 2. Subscribe to the live broadcast channel for THIS specific auction
+                var topicPath = '/topic/auctions/' + auctionId;
+                logMsg("Listening for live prices on: " + topicPath);
+
+                stompClient.subscribe(topicPath, function (response) {
+                    var data = JSON.parse(response.body);
+                    logMsg("📢 <b>BROADCAST:</b> " + data.vendorName + " just bid ₹" + data.newLowestPrice);
+                    
+                    // Flash the screen and update the price!
+                    document.getElementById('lowestPrice').innerText = data.newLowestPrice;
+                    document.getElementById('biddingCard').classList.remove('red-flash');
+                    void document.getElementById('biddingCard').offsetWidth; // trigger reflow
+                    document.getElementById('biddingCard').classList.add('red-flash');
+                });
+            });
+        }
+
+        function placeBid() {
+            var auctionId = document.getElementById('auctionId').value;
+            var vendorId = document.getElementById('vendorId').value;
+            var bidAmount = document.getElementById('bidAmount').value;
+
+            if(!vendorId || !bidAmount) { alert("Missing Vendor ID or Amount"); return; }
+
+            // 3. Send the Bid Payload to the Spring @MessageMapping
+            var payload = {
+                auctionId: auctionId,
+                vendorId: vendorId,
+                bidAmount: parseFloat(bidAmount)
+            };
+
+            stompClient.send("/app/auction/bid", {}, JSON.stringify(payload));
+            logMsg("📤 Sent bid of ₹" + bidAmount + " to server...");
+        }
+    </script>
+</body>
+</html>

@@ -25,7 +25,7 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
         * 
         * @BatchSize on the items collection is the correct solution for OneToMany.
         */
-       @Query("SELECT po FROM PurchaseOrder po JOIN FETCH po.supplier ORDER BY po.createdAt DESC")
+       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.supplier ORDER BY po.createdAt DESC")
        List<PurchaseOrder> findAllByOrderByCreatedAtDesc();
 
        /**
@@ -34,17 +34,25 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
         * Safe for a single record (no Cartesian product issue for a single row).
         */
        @Query("SELECT po FROM PurchaseOrder po " +
-                     "JOIN FETCH po.supplier " +
+                     "LEFT JOIN FETCH po.supplier " +
                      "LEFT JOIN FETCH po.items i " +
                      "LEFT JOIN FETCH i.product " +
                      "WHERE po.id = :id")
        Optional<PurchaseOrder> findByIdWithDetails(@Param("id") UUID id);
 
-       @Query("SELECT po FROM PurchaseOrder po JOIN FETCH po.supplier WHERE po.supplier.id = :supplierId")
+       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.supplier WHERE po.supplier.id = :supplierId")
        List<PurchaseOrder> findBySupplierId(@Param("supplierId") UUID supplierId);
 
+       /** Vendor PO history — all POs linked to a specific Vendor record */
+       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.supplier WHERE po.vendor.id = :vendorId ORDER BY po.createdAt DESC")
+       List<PurchaseOrder> findByVendorId(@Param("vendorId") UUID vendorId);
+
+       /** Summary stats for a vendor — total count and spend */
+       @Query("SELECT COUNT(po), COALESCE(SUM(po.grandTotal), 0) FROM PurchaseOrder po WHERE po.vendor.id = :vendorId")
+       Object[] getVendorStats(@Param("vendorId") UUID vendorId);
+
        @Query("SELECT DISTINCT po FROM PurchaseOrder po " +
-                     "JOIN FETCH po.supplier " +
+                     "LEFT JOIN FETCH po.supplier " +
                      "LEFT JOIN FETCH po.items i " +
                      "LEFT JOIN FETCH i.product " +
                      "WHERE po.invoiceDate BETWEEN :from AND :to ORDER BY po.invoiceDate DESC")

@@ -1,13 +1,10 @@
 package com.Billing_System.service;
 
-import com.Billing_System.dto.InventoryProductDTO;
-import com.Billing_System.dto.InventorySummaryDTO;
-import com.Billing_System.dto.StockAdjustmentDTO;
-import com.Billing_System.entity.Product;
-import com.Billing_System.entity.StockLedger;
-import com.Billing_System.repository.ProductRepository;
-import com.Billing_System.repository.StockLedgerRepository;
+import com.Billing_System.dto.*;
+import com.Billing_System.entity.*;
+import com.Billing_System.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,10 +16,15 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class InventoryService {
 
     private final ProductRepository productRepository;
     private final StockLedgerRepository stockLedgerRepository;
+    private final BinLocationRepository binLocationRepository;
+    private final StockTransferOrderRepository stoRepository;
+    private final UserRepository userRepository;
+    private final BlockchainAuditService auditService;
 
     @Transactional(readOnly = true)
     public InventorySummaryDTO getInventorySummary() {
@@ -130,5 +132,148 @@ public class InventoryService {
     @Transactional(readOnly = true)
     public List<StockLedger> getStockHistory(UUID productId) {
         return stockLedgerRepository.findByProductIdOrderByTransactionDateDesc(productId);
+    }
+
+    // --- Bin Location Management ---
+
+    @Transactional
+    public BinLocationResponseDTO createBinLocation(BinLocationRequestDTO request) {
+        String fullCode = String.format("%s-%s-%d-%s", 
+                request.getZone(), request.getRack(), request.getLevelNumber(), request.getBinCode()).toUpperCase();
+
+        if (binLocationRepository.existsByBinFullCode(fullCode)) {
+            throw new IllegalArgumentException("Bin Location " + fullCode + " already exists.");
+        }
+
+        BinLocation bin = BinLocation.builder()
+                .zone(request.getZone().toUpperCase())
+                .rack(request.getRack().toUpperCase())
+                .levelNumber(request.getLevelNumber())
+                .binCode(request.getBinCode().toUpperCase())
+                .binFullCode(fullCode)
+                .capacityUnits(request.getCapacityUnits())
+                .velocityClass(request.getVelocityClass())
+                .distanceFromDispatchMeters(request.getDistanceFromDispatchMeters())
+                .isActive(true)
+                .build();
+
+        bin = binLocationRepository.save(bin);
+        log.info("Created Bin Location: {}", fullCode);
+        return mapToBinDTO(bin);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BinLocationResponseDTO> getAllBinLocations() {
+        return binLocationRepository.findAll().stream()
+                .map(this::mapToBinDTO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    // --- Stock Transfer Order (STO) Management ---
+
+    @Transactional
+    public StoResponseDTO createSTO(StoRequestDTO request, UUID userId) {
+        User creator = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        Product product = productRepository.findById(request.getProductId())
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+        StockTransferOrder sto = StockTransferOrder.builder()
+                .stoNumber("STO-" + System.currentTimeMillis())
+                .product(product)
+                .sourceBranchName(request.getSourceBranchName())
+                .destBranchName(request.getDestBranchName())
+                .transferQuantity(request.getTransferQuantity())
+                .transferDate(request.getTransferDate())
+                .status("DRAFT")
+                .transferMode(request.getTransferMode())
+                .priority(request.getPriority())
+                .capitalSaved(request.getCapitalSaved())
+                .createdBy(creator)
+                .build();
+
+        sto = stoRepository.save(sto);
+        log.info("Created STO: {}", sto.getStoNumber());
+        
+        // 🛡️ BLOCKCHAIN AUDIT LOG 🛡️
+        auditService.logAction(
+            "stock_transfer_orders", 
+            sto.getId(), 
+            "CREATE", 
+            null, 
+            request, 
+            userId, 
+            "127.0.0.1"
+        );
+
+        return mapToStoDTO(sto);
+    }
+
+    @Transactional
+    public StoResponseDTO updateSTOStatus(UUID id, String status, UUID approverId) {
+        StockTransferOrder sto = stoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("STO not found"));
+
+        sto.setStatus(status);
+
+        if ("APPROVED".equalsIgnoreCase(status) && approverId != null) {
+            User approver = userRepository.findById(approverId)
+                    .orElseThrow(() -> new IllegalArgumentException("Approver not found"));
+            sto.setApprovedBy(approver);
+        }
+
+        sto = stoRepository.save(sto);
+        log.info("STO {} status updated to {}", sto.getStoNumber(), status);
+        return mapToStoDTO(sto);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StoResponseDTO> getAllSTOs() {
+        return stoRepository.findAll().stream()
+                .map(this::mapToStoDTO)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    // --- Mappers ---
+
+    private BinLocationResponseDTO mapToBinDTO(BinLocation bin) {
+        return BinLocationResponseDTO.builder()
+                .id(bin.getId())
+                .zone(bin.getZone())
+                .rack(bin.getRack())
+                .levelNumber(bin.getLevelNumber())
+                .binCode(bin.getBinCode())
+                .binFullCode(bin.getBinFullCode())
+                .capacityUnits(bin.getCapacityUnits())
+                .currentUnits(bin.getCurrentUnits())
+                .currentProductId(bin.getCurrentProduct() != null ? bin.getCurrentProduct().getId() : null)
+                .currentProductName(bin.getCurrentProduct() != null ? bin.getCurrentProduct().getName() : null)
+                .velocityClass(bin.getVelocityClass())
+                .distanceFromDispatchMeters(bin.getDistanceFromDispatchMeters())
+                .isActive(bin.isActive())
+                .build();
+    }
+
+    private StoResponseDTO mapToStoDTO(StockTransferOrder sto) {
+        return StoResponseDTO.builder()
+                .id(sto.getId())
+                .stoNumber(sto.getStoNumber())
+                .productId(sto.getProduct().getId())
+                .productName(sto.getProduct().getName())
+                .sourceBranchName(sto.getSourceBranchName())
+                .destBranchName(sto.getDestBranchName())
+                .transferQuantity(sto.getTransferQuantity())
+                .transferDate(sto.getTransferDate())
+                .status(sto.getStatus())
+                .transferMode(sto.getTransferMode())
+                .priority(sto.getPriority())
+                .capitalSaved(sto.getCapitalSaved())
+                .createdById(sto.getCreatedBy().getId())
+                .createdByName(sto.getCreatedBy().getName())
+                .approvedById(sto.getApprovedBy() != null ? sto.getApprovedBy().getId() : null)
+                .approvedByName(sto.getApprovedBy() != null ? sto.getApprovedBy().getName() : null)
+                .createdAt(sto.getCreatedAt())
+                .build();
     }
 }

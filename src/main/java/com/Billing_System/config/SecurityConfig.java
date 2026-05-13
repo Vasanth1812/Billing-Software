@@ -54,6 +54,7 @@ public class SecurityConfig {
 
                 // ── PUBLIC — no token needed ──────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/*.html").permitAll() // Allow testing UI
 
                 // ── ADMIN only ────────────────────────────────────────────────
                 // Only ADMIN can manage users and bulk import
@@ -91,9 +92,31 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/suppliers/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
                 .requestMatchers(HttpMethod.GET, "/api/purchases/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
 
-                // Reports: ADMIN and MANAGER only
+                // Procurement / GRN: ADMIN and MANAGER only
+                .requestMatchers("/api/grn/**").hasAnyRole("ADMIN", "MANAGER")
+
                 .requestMatchers("/api/reports/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/finance/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/rtv/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/security/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/auctions/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/ws-auction/**").permitAll() // WebSockets handle their own security during handshake
                 .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+
+                // ── VENDOR MODULE — ADMIN + MANAGER ──────────────────────
+                // Read vendor list/detail
+                .requestMatchers(HttpMethod.GET,    "/api/vendors/**").hasAnyRole("ADMIN", "MANAGER")
+                // Create/update vendor and sub-resources
+                .requestMatchers(HttpMethod.POST,   "/api/vendors/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/vendors/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/vendors/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // ── VENDOR PRODUCTS MODULE — ADMIN + MANAGER ─────────────
+                .requestMatchers(HttpMethod.GET,    "/api/vendor-products/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.POST,   "/api/vendor-products/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/vendor-products/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.DELETE, "/api/vendor-products/**").hasAnyRole("ADMIN", "MANAGER")
 
                 // Everything else requires authentication
                 .anyRequest().authenticated()

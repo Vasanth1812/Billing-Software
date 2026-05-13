@@ -216,4 +216,15 @@ public class AuthService {
         log.info("Password reset successful for user: {}", user.getUserId());
         return Map.of("message", "Password has been reset successfully. You can now login with your new password.");
     }
+
+    /**
+     * TEMPORARY DEV FIX: Force reset admin password to Admin@123 with proper BCrypt hash.
+     */
+    public Map<String, String> fixAdminPassword() {
+        User user = userRepository.findByEmailAndIsActiveTrue("admin@billing.com")
+                .orElseThrow(() -> new IllegalArgumentException("Admin user not found"));
+        user.setPassword(passwordEncoder.encode("Admin@123"));
+        userRepository.save(user);
+        return Map.of("message", "Admin password successfully hard-reset to Admin@123 (Properly Hashed!)");
+    }
 }

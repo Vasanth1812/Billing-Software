@@ -61,4 +61,12 @@ public class AuthController {
         String token = authHeader.substring(7);
         return ResponseEntity.ok(authService.logout(token));
     }
+
+    /**
+     * TEMPORARY DEV ENDPOINT: Fixes the admin password hash.
+     */
+    @GetMapping("/fix-admin")
+    public ResponseEntity<Map<String, String>> fixAdmin() {
+        return ResponseEntity.ok(authService.fixAdminPassword());
+    }
 }

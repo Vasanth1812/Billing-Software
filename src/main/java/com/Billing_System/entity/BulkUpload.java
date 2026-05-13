@@ -46,4 +46,7 @@ public class BulkUpload {
 
     @Column(name = "auto_create_suppliers", nullable = false)
     private boolean autoCreateSuppliers;
+
+    @Column(name = "file_hash", length = 64)
+    private String fileHash;
 }
