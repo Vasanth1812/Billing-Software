@@ -12,10 +12,8 @@ import java.util.UUID;
 @Data
 public class PurchaseRequestDTO {
 
-    /** At least one of supplierId OR vendorId must be provided */
-    private String supplierId;
-
-    /** Optional — links this PO to a Vendor record for compliance enforcement & history tracking */
+    /** vendorId is required — vendor is now the single procurement party */
+    @NotBlank(message = "Vendor ID is required")
     private String vendorId;
 
     private String invoiceNumber;

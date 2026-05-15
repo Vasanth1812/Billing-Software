@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/purchases")
+@RequestMapping("/api/purchase-orders")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class PurchaseController {

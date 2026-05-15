@@ -20,6 +20,7 @@ public class VendorResponseDTO {
     private String kycStatus;
     private String complianceStatus;
     private String onboardingStage;
+    private boolean authRequired;
     private String gstin;
     private String panNumber;
     private String gstRegistrationType;

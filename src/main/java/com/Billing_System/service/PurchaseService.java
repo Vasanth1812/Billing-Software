@@ -23,7 +23,6 @@ public class PurchaseService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final PurchaseItemRepository purchaseItemRepository;
     private final ProductRepository productRepository;
-    private final SupplierRepository supplierRepository;
     private final StockLedgerRepository stockLedgerRepository;
     private final SalesInvoiceRepository salesInvoiceRepository;
     private final TaxCalculator taxCalculator;
@@ -44,9 +43,8 @@ public class PurchaseService {
             result.add(com.Billing_System.dto.TransactionOverviewDTO.builder()
                     .id(po.getId())
                     .type("PURCHASE")
-            // partyName: use supplier name if present, else vendor legal name
-        .partyName(po.getSupplier() != null ? po.getSupplier().getName()
-                : (po.getVendor() != null ? po.getVendor().getLegalName() : "Unknown"))
+                    // partyName: vendor is now the single procurement party
+                    .partyName(po.getVendor() != null ? po.getVendor().getLegalName() : "Unknown Vendor")
                     .invoiceNumber(po.getInvoiceNumber())
                     .invoiceDate(po.getInvoiceDate())
                     .amount(po.getGrandTotal())
@@ -99,45 +97,22 @@ public class PurchaseService {
      * Now: 1 SELECT ... WHERE id IN (...) loads all products at once.
      */
     public PurchaseOrder savePurchase(PurchaseRequestDTO dto) {
-        // ── Validate: at least one of supplierId OR vendorId must be provided ──
-        boolean hasSupplier = dto.getSupplierId() != null && !dto.getSupplierId().isBlank();
-        boolean hasVendor   = dto.getVendorId()   != null && !dto.getVendorId().isBlank();
+        // ── 1. Validate and load Vendor (required) ──────────────────────────────────
+        UUID vendorUuid;
+        try { vendorUuid = UUID.fromString(dto.getVendorId()); }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid Vendor ID format: " + dto.getVendorId());
+        }
 
-        if (!hasSupplier && !hasVendor) {
+        com.Billing_System.vendor.entity.Vendor vendor = vendorRepository
+                .findByIdAndDeletedAtIsNull(vendorUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Vendor not found: " + dto.getVendorId()));
+
+        if ("BLOCKED".equals(vendor.getKycStatus()) || "BLOCKED".equals(vendor.getComplianceStatus())) {
             throw new IllegalArgumentException(
-                "Either supplierId or vendorId must be provided to create a Purchase Order.");
-        }
-
-        // ── 1. Load Supplier (optional) ─────────────────────────────────────────────
-        Supplier supplier = null;
-        if (hasSupplier) {
-            UUID supplierUuid;
-            try { supplierUuid = UUID.fromString(dto.getSupplierId()); }
-            catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid Supplier ID format: " + dto.getSupplierId());
-            }
-            supplier = supplierRepository.findById(supplierUuid)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Supplier not found with ID: " + dto.getSupplierId()));
-        }
-
-        // 1b. Validate vendor (if provided) — block PO if vendor is BLOCKED
-        com.Billing_System.vendor.entity.Vendor vendor = null;
-        if (dto.getVendorId() != null && !dto.getVendorId().isBlank()) {
-            UUID vendorUuid;
-            try { vendorUuid = UUID.fromString(dto.getVendorId()); }
-            catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid Vendor ID format: " + dto.getVendorId());
-            }
-            vendor = vendorRepository.findByIdAndDeletedAtIsNull(vendorUuid)
-                    .orElseThrow(() -> new IllegalArgumentException("Vendor not found: " + dto.getVendorId()));
-
-            if ("BLOCKED".equals(vendor.getKycStatus()) || "BLOCKED".equals(vendor.getComplianceStatus())) {
-                throw new IllegalArgumentException(
-                    "Cannot raise PO for vendor '" + vendor.getLegalName() + "' (" + vendor.getVendorCode()
-                    + ") — vendor is BLOCKED. Reason: kycStatus=" + vendor.getKycStatus()
-                    + ", complianceStatus=" + vendor.getComplianceStatus());
-            }
+                "Cannot raise PO for vendor '" + vendor.getLegalName() + "' ("
+                + vendor.getVendorCode() + ") — vendor is BLOCKED. kycStatus="
+                + vendor.getKycStatus() + ", complianceStatus=" + vendor.getComplianceStatus());
         }
 
         // 2. Parse and Batch-load ALL products ──────────────────────────────
@@ -201,8 +176,7 @@ public class PurchaseService {
                 : dto.getInvoiceNumber();
 
         PurchaseOrder order = PurchaseOrder.builder()
-                .supplier(supplier)
-                .vendor(vendor)   // null if no vendorId provided — backward compatible
+                .vendor(vendor)
                 .invoiceNumber(invoiceNumber)
                 .invoiceDate(dto.getInvoiceDate() != null ? dto.getInvoiceDate() : LocalDate.now())
                 .totalAmount(totalAmount)

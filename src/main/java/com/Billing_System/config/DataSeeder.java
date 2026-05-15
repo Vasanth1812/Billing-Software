@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * Runs on application startup.
  * Creates a default ADMIN user if no users exist in the database.
  */
-@Component
+//@Component
 @RequiredArgsConstructor
 @Slf4j
 public class DataSeeder implements CommandLineRunner {

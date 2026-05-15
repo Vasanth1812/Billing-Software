@@ -10,7 +10,9 @@ import java.util.UUID;
  * Vendor — supply-chain partner who supplies goods via Purchase Orders.
  *
  * Lifecycle:
- *   onboardingStage: CATEGORY_MANAGER_REVIEW → QUALITY_REVIEW → FINANCE_REVIEW → DIRECTOR_REVIEW → null (ACTIVE)
+ *   authRequired:    false (default) → vendor is auto-activated on creation (no review)
+ *                   true             → full 4-step review: CATEGORY_MANAGER_REVIEW → QUALITY_REVIEW → FINANCE_REVIEW → DIRECTOR_REVIEW → ACTIVE
+ *   onboardingStage: only populated when authRequired=true
  *   kycStatus:       PENDING → IN_REVIEW → ACTIVE | REJECTED | BLOCKED
  *   complianceStatus: PENDING → COMPLIANT | EXPIRING_SOON | NON_COMPLIANT | BLOCKED
  *
@@ -73,8 +75,18 @@ public class Vendor {
     private String complianceStatus = "PENDING";
 
     /**
+     * Controls whether the 4-step authorization workflow is required.
+     * false (0) = auto-activate on creation (default, no review needed).
+     * true  (1) = full CATEGORY_MANAGER_REVIEW → QUALITY_REVIEW → FINANCE_REVIEW → DIRECTOR_REVIEW flow.
+     * Can be flipped by admin at any time.
+     */
+    @Builder.Default
+    @Column(name = "auth_required", nullable = false)
+    private boolean authRequired = false;
+
+    /**
      * Current onboarding approval stage.
-     * NULL means the vendor has completed onboarding (is ACTIVE).
+     * NULL when authRequired=false (vendor auto-activated) or when fully onboarded.
      * CATEGORY_MANAGER_REVIEW | QUALITY_REVIEW | FINANCE_REVIEW | DIRECTOR_REVIEW
      */
     @Column(name = "onboarding_stage", length = 40)

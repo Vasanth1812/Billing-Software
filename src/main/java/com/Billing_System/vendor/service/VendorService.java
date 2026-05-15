@@ -78,14 +78,26 @@ public class VendorService {
                 .primaryEmail(dto.getPrimaryEmail().toLowerCase())
                 .website(dto.getWebsite())
                 .notes(dto.getNotes())
-                .kycStatus("PENDING")
-                .complianceStatus("PENDING")
-                .onboardingStage("CATEGORY_MANAGER_REVIEW")
-                .createdBy(createdBy)
+                .authRequired(dto.isAuthRequired())
                 .build();
 
+        // ── Onboarding flow decision ──
+        if (dto.isAuthRequired()) {
+            // Full 4-step authorization required — start at first stage
+            vendor.setKycStatus("PENDING");
+            vendor.setComplianceStatus("PENDING");
+            vendor.setOnboardingStage("CATEGORY_MANAGER_REVIEW");
+            log.info("Vendor created with auth workflow (4-step): {} ({})", vendor.getLegalName(), vendorCode);
+        } else {
+            // No authorization required — auto-activate immediately
+            vendor.setKycStatus("ACTIVE");
+            vendor.setComplianceStatus("COMPLIANT");
+            vendor.setOnboardingStage(null); // no review stages needed
+            log.info("Vendor created and auto-activated (no auth required): {} ({})", vendor.getLegalName(), vendorCode);
+        }
+
+        vendor.setCreatedBy(createdBy);
         vendor = vendorRepository.save(vendor);
-        log.info("Vendor created: {} ({})", vendor.getLegalName(), vendor.getVendorCode());
         return toResponseDTO(vendor);
     }
 
@@ -126,7 +138,7 @@ public class VendorService {
 
     /** Get all active vendors — uses simple query when no filters, search query when filters provided */
     @Transactional(readOnly = true)
-    public List<VendorSummaryDTO> getAllVendors(String search, String complianceStatus, String kycStatus) {
+    public List<VendorResponseDTO> getAllVendors(String search, String complianceStatus, String kycStatus) {
         List<Vendor> vendors;
 
         boolean noFilters = (search == null || search.isBlank())
@@ -143,18 +155,19 @@ public class VendorService {
         }
 
         return vendors.stream()
-                .map(this::toSummaryDTO)
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    /** Soft delete — sets deleted_at timestamp */
+    /** Soft delete — sets deleted_at timestamp and deactivates status */
     @Transactional
     public void deleteVendor(UUID id) {
         Vendor vendor = getVendorEntity(id);
         vendor.setDeletedAt(LocalDateTime.now());
+        vendor.setKycStatus("INACTIVE"); // Make it readable as requested
         vendor.setUpdatedAt(LocalDateTime.now());
         vendorRepository.save(vendor);
-        log.info("Vendor soft-deleted: {} ({})", vendor.getLegalName(), vendor.getVendorCode());
+        log.info("Vendor soft-deleted and deactivated: {} ({})", vendor.getLegalName(), vendor.getVendorCode());
     }
 
     // ─── Onboarding Workflow ─────────────────────────────────────────────────────
@@ -549,6 +562,7 @@ public class VendorService {
                 .kycStatus(v.getKycStatus())
                 .complianceStatus(v.getComplianceStatus())
                 .onboardingStage(v.getOnboardingStage())
+                .authRequired(v.isAuthRequired())
                 .gstin(v.getGstin())
                 .panNumber(v.getPanNumber())
                 .gstRegistrationType(v.getGstRegistrationType())

@@ -35,13 +35,18 @@ public class GRNController {
     }
 
     /**
-     * Approve a GRN.
+     * Approve/Finalize a GRN.
      * Triggers stock updates, PO status changes, and VendorProduct mapping.
      */
     @PostMapping("/{id}/approve")
     public ResponseEntity<GRNResponseDTO> approveGRN(@PathVariable UUID id) {
         GRNResponseDTO response = grnService.approveGRN(id);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}/finalize")
+    public ResponseEntity<GRNResponseDTO> finalizeGRN(@PathVariable UUID id) {
+        return approveGRN(id);
     }
 
     /**

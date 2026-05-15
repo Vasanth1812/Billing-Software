@@ -33,16 +33,11 @@ public class GRN {
     @ToString.Exclude
     private PurchaseOrder purchaseOrder;
 
-    // We keep links to Vendor or Supplier for reporting/analytics, matching PO structure.
+    // Vendor link mirrors the PO's vendor for reporting/analytics.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id")
     @ToString.Exclude
     private com.Billing_System.vendor.entity.Vendor vendor;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supplier_id")
-    @ToString.Exclude
-    private Supplier supplier;
 
     @Column(name = "received_date", nullable = false)
     private LocalDateTime receivedDate;

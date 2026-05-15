@@ -32,8 +32,8 @@ import java.util.UUID;
  * ── Onboarding Workflow ───────────────────────────────────────────────────────
  * POST   /api/vendors/{id}/onboarding/approve      Advance to next stage
  * POST   /api/vendors/{id}/onboarding/reject        Reject at current stage
- * POST   /api/vendors/{id}/block                    Block vendor (compliance/fraud)
- * POST   /api/vendors/{id}/unblock                  Unblock vendor
+ * PATCH  /api/vendors/{id}/block                    Block vendor (compliance/fraud)
+ * PATCH  /api/vendors/{id}/unblock                  Unblock vendor
  *
  * ── Locations ────────────────────────────────────────────────────────────────
  * POST   /api/vendors/{id}/locations               Add new location
@@ -98,7 +98,7 @@ public class VendorController {
     // ─── Vendor CRUD ─────────────────────────────────────────────────────────
 
     @GetMapping
-    public ResponseEntity<List<VendorSummaryDTO>> getAllVendors(
+    public ResponseEntity<List<VendorResponseDTO>> getAllVendors(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String complianceStatus,
             @RequestParam(required = false) String kycStatus) {
@@ -161,7 +161,7 @@ public class VendorController {
         return ResponseEntity.ok(vendorService.rejectVendor(id, reason));
     }
 
-    @PostMapping("/{id}/block")
+    @PatchMapping("/{id}/block")
     public ResponseEntity<VendorResponseDTO> blockVendor(
             @PathVariable UUID id,
             @RequestBody(required = false) Map<String, String> body) {
@@ -169,7 +169,7 @@ public class VendorController {
         return ResponseEntity.ok(vendorService.blockVendor(id, reason));
     }
 
-    @PostMapping("/{id}/unblock")
+    @PatchMapping("/{id}/unblock")
     public ResponseEntity<VendorResponseDTO> unblockVendor(@PathVariable UUID id) {
         return ResponseEntity.ok(vendorService.unblockVendor(id));
     }

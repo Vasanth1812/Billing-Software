@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "purchase_orders")
-@Check(constraints = "supplier_id IS NOT NULL OR vendor_id IS NOT NULL")
+@Check(constraints = "vendor_id IS NOT NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,16 +25,6 @@ public class PurchaseOrder {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supplier_id")   // nullable — vendorId-only POs don't need a supplier
-    @ToString.Exclude
-    private Supplier supplier;
-
-    /**
-     * Optional link to the Vendor module.
-     * NULL for old POs created before the Vendor module existed.
-     * When set, enables compliance enforcement (blocked vendors can't get new POs).
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id")
     @ToString.Exclude

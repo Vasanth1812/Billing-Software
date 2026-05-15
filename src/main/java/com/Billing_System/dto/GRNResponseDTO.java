@@ -18,9 +18,6 @@ public class GRNResponseDTO {
     private UUID vendorId;
     private String vendorName;
     
-    private UUID supplierId;
-    private String supplierName;
-    
     private LocalDateTime receivedDate;
     private UUID receivedByUserId;
     private String receivedByUserName;

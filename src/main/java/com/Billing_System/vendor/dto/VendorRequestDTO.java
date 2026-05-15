@@ -56,4 +56,11 @@ public class VendorRequestDTO {
     private String annualTurnoverRange;
 
     private String notes;
+
+    /**
+     * Controls whether the 4-step onboarding review is required.
+     * Default: false (0) — vendor is auto-activated without any approval workflow.
+     * Set to true (1) if you want full CATEGORY_MANAGER → QUALITY → FINANCE → DIRECTOR review.
+     */
+    private boolean authRequired = false;
 }
