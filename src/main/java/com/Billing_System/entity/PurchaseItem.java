@@ -26,8 +26,14 @@ public class PurchaseItem {
     private PurchaseOrder purchaseOrder;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id", nullable = true)
     private Product product;
+
+    @Column(name = "product_name")
+    private String productName;
+
+    @Column(name = "vendor_product_id")
+    private UUID vendorProductId;
 
     @Column(name = "quantity", nullable = false, precision = 10, scale = 3)
     private BigDecimal quantity;

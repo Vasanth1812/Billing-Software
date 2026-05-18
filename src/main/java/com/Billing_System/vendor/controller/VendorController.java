@@ -234,6 +234,37 @@ public class VendorController {
         return ResponseEntity.ok(Map.of("message", "Document deleted successfully"));
     }
 
+    // ─── Vendor Products (Catalog) ───────────────────────────────────────────
+
+    /**
+     * POST /api/vendors/{id}/products
+     * Manually add a product to a vendor's catalog (one by one).
+     * This saves to vendor_products table — not the store's products table.
+     */
+
+    /**
+     * POST /api/vendors/{id}/products
+     * Manually add a product to a vendor's catalog (vendor_products table).
+     * This saves to vendor_products table — not the store's products table.
+     */
+    @PostMapping("/{id}/products")
+    public ResponseEntity<VendorProductDTO> addVendorProduct(
+            @PathVariable UUID id,
+            @Valid @RequestBody VendorProductRequestDTO dto) {
+        VendorProductDTO created = vendorService.addVendorProduct(id, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * DELETE /api/vendors/products/{productId}
+     * Soft-delete a vendor product (sets isActive = false).
+     */
+    @DeleteMapping("/products/{productId}")
+    public ResponseEntity<Map<String, String>> deleteVendorProduct(@PathVariable UUID productId) {
+        vendorService.deleteVendorProduct(productId);
+        return ResponseEntity.ok(Map.of("message", "Vendor product deleted successfully"));
+    }
+
     // ─── Compliance ──────────────────────────────────────────────────────────
 
     /** Admin endpoint — trigger compliance scan immediately (useful for testing) */

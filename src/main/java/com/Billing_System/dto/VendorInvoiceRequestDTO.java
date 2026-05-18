@@ -25,6 +25,9 @@ public class VendorInvoiceRequestDTO {
     @NotNull(message = "Invoice date is required")
     private LocalDate invoiceDate;
 
+    @NotNull(message = "Due date is required")
+    private LocalDate dueDate;
+
     @NotNull(message = "Invoice amount is required")
     private BigDecimal invoiceAmount;
 

@@ -46,13 +46,15 @@ public class GRNService {
         // Generate GRN Number
         String grnNumber = "GRN-" + System.currentTimeMillis(); // Simple generation
 
+        String initialStatus = request.getStatus() != null ? request.getStatus().toUpperCase() : "PENDING";
+
         GRN grn = GRN.builder()
                 .grnNumber(grnNumber)
                 .purchaseOrder(po)
                 .vendor(po.getVendor())
                 .receivedDate(request.getReceivedDate() != null ? request.getReceivedDate() : LocalDateTime.now())
                 .receivedBy(user)
-                .status("DRAFT")
+                .status(initialStatus)
                 .vendorInvoiceNumber(request.getVendorInvoiceNumber())
                 .remarks(request.getRemarks())
                 .build();
@@ -94,8 +96,8 @@ public class GRNService {
         GRN grn = grnRepository.findById(grnId)
                 .orElseThrow(() -> new IllegalArgumentException("GRN not found: " + grnId));
 
-        if (!"DRAFT".equals(grn.getStatus())) {
-            throw new IllegalStateException("Only DRAFT GRNs can be approved. Current status: " + grn.getStatus());
+        if (!"DRAFT".equals(grn.getStatus()) && !"PENDING".equals(grn.getStatus())) {
+            throw new IllegalStateException("Only DRAFT or PENDING GRNs can be approved. Current status: " + grn.getStatus());
         }
 
         // Process each item: update stock, update PO item received qty, map vendor product
@@ -125,10 +127,13 @@ public class GRNService {
             PurchaseItem poItem = item.getPurchaseItem();
             BigDecimal previouslyReceived = poItem.getReceivedQuantity() != null ? poItem.getReceivedQuantity() : BigDecimal.ZERO;
             poItem.setReceivedQuantity(previouslyReceived.add(acceptedQty));
+            if (poItem.getProduct() == null) {
+                poItem.setProduct(product);
+            }
             purchaseItemRepository.save(poItem);
 
-            // Map Vendor Product to Store Product if not already mapped
-            if (item.getVendorProduct() != null && item.getVendorProduct().getMappedProductId() == null) {
+            // Map Vendor Product to Store Product if not already mapped or if mapped on the fly
+            if (item.getVendorProduct() != null) {
                 VendorProduct vp = item.getVendorProduct();
                 vp.setMappedProductId(product.getId());
                 vp.setUpdatedAt(LocalDateTime.now());
@@ -194,10 +199,12 @@ public class GRNService {
     }
 
     private void updatePurchaseOrderStatus(PurchaseOrder po) {
+        List<PurchaseItem> items = purchaseItemRepository.findByPurchaseOrderId(po.getId());
+        
         boolean allFullyReceived = true;
         boolean anythingReceived = false;
 
-        for (PurchaseItem item : po.getItems()) {
+        for (PurchaseItem item : items) {
             BigDecimal received = item.getReceivedQuantity() != null ? item.getReceivedQuantity() : BigDecimal.ZERO;
             BigDecimal ordered = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
             
@@ -212,6 +219,13 @@ public class GRNService {
         }
         
         purchaseOrderRepository.save(po);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GRNResponseDTO> getAllGRNs() {
+        return grnRepository.findAll().stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -260,6 +274,11 @@ public class GRNService {
     }
 
     private GRNItemResponseDTO mapItemToDTO(GRNItem item) {
+        BigDecimal gstRate = BigDecimal.ZERO;
+        if (item.getPurchaseItem() != null && item.getPurchaseItem().getGstRate() != null) {
+            gstRate = item.getPurchaseItem().getGstRate();
+        }
+        
         return GRNItemResponseDTO.builder()
                 .id(item.getId())
                 .grnId(item.getGrn().getId())
@@ -274,6 +293,7 @@ public class GRNService {
                 .acceptedQuantity(item.getAcceptedQuantity())
                 .rejectedQuantity(item.getRejectedQuantity())
                 .unitPrice(item.getUnitPrice())
+                .gstRate(gstRate)
                 .remarks(item.getRemarks())
                 .build();
     }

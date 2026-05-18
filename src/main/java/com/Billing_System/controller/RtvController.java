@@ -1,5 +1,6 @@
 package com.Billing_System.controller;
 
+import com.Billing_System.dto.RtvRequestDTO;
 import com.Billing_System.dto.RtvResponseDTO;
 import com.Billing_System.service.RtvService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/rtv")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class RtvController {
 
     private final RtvService rtvService;
@@ -24,6 +26,13 @@ public class RtvController {
     @GetMapping("/{id}")
     public ResponseEntity<RtvResponseDTO> getRtvById(@PathVariable UUID id) {
         return ResponseEntity.ok(rtvService.getRtvById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<RtvResponseDTO> createRtvRequest(
+            @RequestBody RtvRequestDTO requestDto,
+            @RequestHeader("X-User-Id") UUID userId) {
+        return ResponseEntity.ok(rtvService.createRtvRequest(requestDto, userId));
     }
 
     @PatchMapping("/{id}/status")

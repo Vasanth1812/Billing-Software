@@ -77,6 +77,7 @@ public class FinanceService {
                 .grn(grn)
                 .purchaseOrder(po)
                 .invoiceDate(request.getInvoiceDate())
+                .dueDate(request.getDueDate())
                 .invoiceAmount(request.getInvoiceAmount())
                 .gstAmount(request.getGstAmount())
                 .totalAmount(invoiceTotal)
@@ -93,6 +94,53 @@ public class FinanceService {
 
         return mapToInvoiceDTO(invoice);
     }
+
+    @Transactional(readOnly = true)
+    public List<VendorInvoiceResponseDTO> getAllInvoices() {
+        return invoiceRepository.findAll().stream()
+                .map(this::mapToInvoiceDTO)
+                .collect(Collectors.toList());
+    }
+
+    /** Bug 2 Fix: Get single invoice by ID */
+    @Transactional(readOnly = true)
+    public VendorInvoiceResponseDTO getInvoiceById(UUID id) {
+        VendorInvoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
+        return mapToInvoiceDTO(invoice);
+    }
+
+    @Transactional(readOnly = true)
+    public List<VendorPaymentResponseDTO> getAllVendorPayments() {
+        return paymentRepository.findAll().stream()
+                .map(this::mapToPaymentDTO)
+                .collect(Collectors.toList());
+    }
+
+    /** Bug 2 Fix: Get single payment by ID */
+    @Transactional(readOnly = true)
+    public VendorPaymentResponseDTO getPaymentById(UUID id) {
+        VendorPayment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + id));
+        return mapToPaymentDTO(payment);
+    }
+
+    @Transactional
+    public VendorInvoiceResponseDTO approveInvoice(UUID invoiceId) {
+        VendorInvoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found"));
+
+        invoice.setPoMatchStatus("MATCHED");
+        invoice.setGrnMatchStatus("MATCHED");
+        invoice.setInvoiceMatchStatus("MATCHED");
+        invoice.setThreeWayMatch(true);
+        invoice.setSubmissionStatus("APPROVED");
+
+        invoice = invoiceRepository.save(invoice);
+        log.info("Vendor Invoice {} manually approved and matched.", invoice.getInvoiceNumber());
+        return mapToInvoiceDTO(invoice);
+    }
+
 
     @Transactional
     public VendorPaymentResponseDTO createPayment(VendorPaymentRequestDTO request, UUID approvedByUserId) {
@@ -147,6 +195,11 @@ public class FinanceService {
                 .build();
 
         payment = paymentRepository.save(payment);
+        
+        // Update the invoice status to PAID
+        invoice.setSubmissionStatus("PAID");
+        invoiceRepository.save(invoice);
+
         log.info("Processed Payment {} for Vendor {}. Gross: {}, Net: {}, Hold: {}", 
                 payment.getPaymentNumber(), vendor.getLegalName(), request.getPaymentAmount(), netPayment, holdAmount);
 
@@ -164,6 +217,7 @@ public class FinanceService {
                 .purchaseOrderId(invoice.getPurchaseOrder().getId())
                 .purchaseOrderNumber(invoice.getPurchaseOrder().getInvoiceNumber())
                 .invoiceDate(invoice.getInvoiceDate())
+                .dueDate(invoice.getDueDate())
                 .invoiceAmount(invoice.getInvoiceAmount())
                 .gstAmount(invoice.getGstAmount())
                 .totalAmount(invoice.getTotalAmount())

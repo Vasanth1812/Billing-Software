@@ -4,6 +4,8 @@ import com.Billing_System.entity.User;
 import com.Billing_System.repository.UserRepository;
 import com.Billing_System.vendor.dto.VendorBulkImportResponseDTO;
 import com.Billing_System.vendor.entity.Vendor;
+import com.Billing_System.vendor.entity.VendorProduct;
+import com.Billing_System.vendor.repository.VendorProductRepository;
 import com.Billing_System.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -39,11 +42,15 @@ import java.util.*;
  *  9  - Website            (optional)
  * 10  - Notes              (optional)
  *
- * DUPLICATE GSTIN BEHAVIOUR:
+ * VENDOR DUPLICATES:
  *   - If GSTIN already exists → UPDATE existing vendor (not skipped)
  *   - New vendors → auto-assigned vendor code VND-000001, VND-000002...
+ * 
+ * PRODUCT DUPLICATES:
+ *   - If Vendor SKU exists for this Vendor → UPDATE product
+ *   - Otherwise → INSERT new product
  *
- * Max 2,000 vendors per file.
+ * Max 2,000 rows per file.
  */
 @Service
 @RequiredArgsConstructor
@@ -52,9 +59,9 @@ public class VendorMasterBulkImportService {
 
     private static final int BATCH_SIZE    = 200;
     private static final int MAX_ROWS      = 2000;
-    private static final int DATA_START_ROW = 3;
+    private static final int DATA_START_ROW = 5; // 0-indexed: Row 6 in Excel = index 5
 
-    // Column indices (0-based)
+    // Vendor fields (0-10)
     private static final int COL_LEGAL_NAME    = 0;
     private static final int COL_TRADE_NAME    = 1;
     private static final int COL_GSTIN         = 2;
@@ -67,6 +74,19 @@ public class VendorMasterBulkImportService {
     private static final int COL_WEBSITE       = 9;
     private static final int COL_NOTES         = 10;
 
+    // Product fields (11-21)
+    private static final int COL_PRODUCT_NAME   = 11;
+    private static final int COL_VENDOR_SKU     = 12;
+    private static final int COL_PURCHASE_PRICE = 13;
+    private static final int COL_UNIT           = 14;
+    private static final int COL_PACK_SIZE      = 15;
+    private static final int COL_GST_RATE       = 16;
+    private static final int COL_HSN_CODE       = 17;
+    private static final int COL_BRAND          = 18;
+    private static final int COL_CATEGORY       = 19;
+    private static final int COL_MIN_ORDER_QTY  = 20;
+    private static final int COL_DESCRIPTION    = 21;
+
     public static final String[] TEMPLATE_HEADERS = {
             "Legal Name",
             "Trade Name",
@@ -78,13 +98,33 @@ public class VendorMasterBulkImportService {
             "GST Reg Type",
             "Annual Turnover Range",
             "Website",
-            "Notes"
+            "Notes",
+            "Product Name",
+            "Vendor SKU",
+            "Purchase Price (₹)",
+            "Unit of Measure",
+            "Pack Size",
+            "GST %",
+            "HSN Code",
+            "Brand",
+            "Category",
+            "Min Order Qty",
+            "Description"
     };
 
     private static final Set<String> VALID_BUSINESS_TYPES =
             Set.of("MANUFACTURER", "TRADER", "SERVICE", "DISTRIBUTOR", "IMPORTER");
 
+    private static final Set<BigDecimal> VALID_GST_RATES = Set.of(
+            BigDecimal.ZERO,
+            new BigDecimal("5"),
+            new BigDecimal("12"),
+            new BigDecimal("18"),
+            new BigDecimal("28")
+    );
+
     private final VendorRepository vendorRepository;
+    private final VendorProductRepository vendorProductRepository;
     private final UserRepository   userRepository;
 
     @Transactional
@@ -106,10 +146,14 @@ public class VendorMasterBulkImportService {
         // Current vendor count for auto-code generation
         long vendorCount = vendorRepository.countAllVendors();
 
-        List<String>  errors     = new ArrayList<>();
-        List<Vendor>  batch      = new ArrayList<>(BATCH_SIZE);
-        int successCount = 0;
-        int updatedCount = 0;
+        List<String>  errors       = new ArrayList<>();
+        List<Vendor>  vendorBatch  = new ArrayList<>(BATCH_SIZE);
+        List<VendorProduct> productBatch = new ArrayList<>(BATCH_SIZE);
+        
+        int vendorSuccessCount = 0;
+        int vendorUpdatedCount = 0;
+        int productSuccessCount = 0;
+        int productUpdatedCount = 0;
         int failedCount  = 0;
         int totalRows    = 0;
 
@@ -122,6 +166,27 @@ public class VendorMasterBulkImportService {
             }
             if (lastRowNum - DATA_START_ROW + 1 > MAX_ROWS) {
                 throw new IllegalArgumentException("Max " + MAX_ROWS + " vendors per file.");
+            }
+
+            // ── Validate Headers ──────────────────────────────────────────────
+            Row headerRow = sheet.getRow(1);
+            if (headerRow == null) {
+                throw new IllegalArgumentException("Invalid template format. Header row is missing.");
+            }
+            
+            // Check first few critical columns to ensure it's the right template
+            String col0 = getCellString(headerRow, 0);
+            String col2 = getCellString(headerRow, 2);
+            String col4 = getCellString(headerRow, 4);
+            
+            if (!"Legal Name".equalsIgnoreCase(col0) || 
+                !"GSTIN".equalsIgnoreCase(col2) || 
+                !"Business Type".equalsIgnoreCase(col4)) {
+                throw new IllegalArgumentException(
+                    "Invalid template format detected. " +
+                    "It looks like you uploaded the wrong Excel file (e.g., Store Products template). " +
+                    "Please click 'Download Template' to get the correct Vendor Bulk Import template."
+                );
             }
 
             for (int rowIdx = DATA_START_ROW; rowIdx <= lastRowNum; rowIdx++) {
@@ -168,23 +233,23 @@ public class VendorMasterBulkImportService {
                     }
 
                     // ── Upsert by GSTIN ───────────────────────────────────────
-                    Vendor existing = gstinCache.get(gstin);
+                    Vendor vendorObjToUse = gstinCache.get(gstin);
 
-                    if (existing != null) {
+                    if (vendorObjToUse != null) {
                         // UPDATE existing vendor
-                        existing.setLegalName(legalName.trim());
-                        existing.setTradeName(tradeName.isBlank() ? null : tradeName.trim());
-                        existing.setPanNumber(pan.isBlank() ? null : pan);
-                        existing.setBusinessType(businessType);
-                        existing.setPrimaryMobile(mobile.trim());
-                        existing.setPrimaryEmail(email);
-                        existing.setGstRegistrationType(gstRegType.isBlank() ? null : gstRegType.trim());
-                        existing.setAnnualTurnoverRange(turnover.isBlank() ? null : turnover.trim());
-                        existing.setWebsite(website.isBlank() ? null : website.trim());
-                        existing.setNotes(notes.isBlank() ? null : notes.trim());
-                        existing.setUpdatedAt(LocalDateTime.now());
-                        batch.add(existing);
-                        updatedCount++;
+                        vendorObjToUse.setLegalName(legalName.trim());
+                        vendorObjToUse.setTradeName(tradeName.isBlank() ? null : tradeName.trim());
+                        vendorObjToUse.setPanNumber(pan.isBlank() ? null : pan);
+                        vendorObjToUse.setBusinessType(businessType);
+                        vendorObjToUse.setPrimaryMobile(mobile.trim());
+                        vendorObjToUse.setPrimaryEmail(email);
+                        vendorObjToUse.setGstRegistrationType(gstRegType.isBlank() ? null : gstRegType.trim());
+                        vendorObjToUse.setAnnualTurnoverRange(turnover.isBlank() ? null : turnover.trim());
+                        vendorObjToUse.setWebsite(website.isBlank() ? null : website.trim());
+                        vendorObjToUse.setNotes(notes.isBlank() ? null : notes.trim());
+                        vendorObjToUse.setUpdatedAt(LocalDateTime.now());
+                        vendorBatch.add(vendorObjToUse);
+                        vendorUpdatedCount++;
                     } else {
                         // INSERT new vendor — check email uniqueness
                         if (emailCache.containsKey(email)) {
@@ -196,7 +261,7 @@ public class VendorMasterBulkImportService {
                         vendorCount++;
                         String vendorCode = String.format("VND-%06d", vendorCount);
 
-                        Vendor newVendor = Vendor.builder()
+                        vendorObjToUse = Vendor.builder()
                                 .vendorCode(vendorCode)
                                 .legalName(legalName.trim())
                                 .tradeName(tradeName.isBlank() ? null : tradeName.trim())
@@ -215,16 +280,119 @@ public class VendorMasterBulkImportService {
                                 .createdBy(uploadedBy)
                                 .build();
 
-                        batch.add(newVendor);
+                        vendorBatch.add(vendorObjToUse);
                         // Update caches to catch intra-file duplicates
-                        gstinCache.put(gstin, newVendor);
-                        emailCache.put(email, newVendor);
-                        successCount++;
+                        gstinCache.put(gstin, vendorObjToUse);
+                        emailCache.put(email, vendorObjToUse);
+                        vendorSuccessCount++;
                     }
 
-                    if (batch.size() >= BATCH_SIZE) {
-                        vendorRepository.saveAll(batch);
-                        batch.clear();
+                    // Flush vendor batch early if needed so products can attach to saved vendors
+                    if (vendorBatch.size() >= BATCH_SIZE) {
+                        vendorRepository.saveAll(vendorBatch);
+                        vendorBatch.clear();
+                    }
+
+                    // ── Parse Product details if any ──────────────────────────
+                    String productName  = getCellString(row, COL_PRODUCT_NAME);
+                    if (!productName.isBlank()) {
+                        String vendorSku = getCellString(row, COL_VENDOR_SKU);
+                        String priceStr  = getCellString(row, COL_PURCHASE_PRICE);
+                        String unit      = getCellString(row, COL_UNIT);
+                        String gstStr    = getCellString(row, COL_GST_RATE);
+
+                        List<String> missingProd = new ArrayList<>();
+                        if (vendorSku.isBlank())   missingProd.add("Vendor SKU");
+                        if (priceStr.isBlank())    missingProd.add("Purchase Price");
+                        if (unit.isBlank())        missingProd.add("Unit of Measure");
+                        if (gstStr.isBlank())      missingProd.add("GST %");
+
+                        if (!missingProd.isEmpty()) {
+                            errors.add("Row " + excelRow + ": Product missing required fields: " + String.join(", ", missingProd));
+                        } else {
+                            // Validate Price
+                            BigDecimal purchasePrice = null;
+                            try {
+                                purchasePrice = new BigDecimal(priceStr.replace(",", "").trim());
+                                if (purchasePrice.compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
+                            } catch (Exception e) {
+                                errors.add("Row " + excelRow + ": Invalid Purchase Price '" + priceStr + "'");
+                            }
+
+                            // Validate GST
+                            BigDecimal gstRate = null;
+                            try {
+                                gstRate = new BigDecimal(gstStr.replace("%", "").trim()).stripTrailingZeros();
+                                if (!VALID_GST_RATES.contains(gstRate)) throw new NumberFormatException();
+                            } catch (Exception e) {
+                                errors.add("Row " + excelRow + ": Invalid GST rate '" + gstStr + "'");
+                            }
+
+                            if (purchasePrice != null && gstRate != null) {
+                                String packSize    = getCellString(row, COL_PACK_SIZE);
+                                String hsnCode     = getCellString(row, COL_HSN_CODE);
+                                String brand       = getCellString(row, COL_BRAND);
+                                String category    = getCellString(row, COL_CATEGORY);
+                                String minQtyStr   = getCellString(row, COL_MIN_ORDER_QTY);
+                                String description = getCellString(row, COL_DESCRIPTION);
+
+                                BigDecimal minOrderQty = null;
+                                if (!minQtyStr.isBlank()) {
+                                    try { minOrderQty = new BigDecimal(minQtyStr.replace(",", "").trim()); } catch (Exception ignored) {}
+                                }
+
+                                // We must ensure the vendor has an ID before mapping product in the DB, 
+                                // so we save the vendor immediately if it is transient.
+                                if (vendorObjToUse.getId() == null) {
+                                    vendorObjToUse = vendorRepository.save(vendorObjToUse);
+                                    // Remove from batch to avoid duplicate saving
+                                    vendorBatch.remove(vendorBatch.size() - 1);
+                                }
+
+                                Optional<VendorProduct> existingProduct = vendorProductRepository.findByVendorIdAndVendorSku(vendorObjToUse.getId(), vendorSku.trim());
+
+                                VendorProduct product;
+                                if (existingProduct.isPresent()) {
+                                    product = existingProduct.get();
+                                    product.setProductName(productName.trim());
+                                    product.setPurchasePrice(purchasePrice);
+                                    product.setUnitOfMeasure(unit.trim().toUpperCase());
+                                    product.setPackSize(packSize.isBlank() ? null : packSize.trim());
+                                    product.setGstRate(gstRate);
+                                    product.setHsnCode(hsnCode.isBlank() ? null : hsnCode.trim());
+                                    product.setBrand(brand.isBlank() ? null : brand.trim());
+                                    product.setCategory(category.isBlank() ? null : category.trim());
+                                    product.setMinOrderQty(minOrderQty);
+                                    product.setDescription(description.isBlank() ? null : description.trim());
+                                    product.setUpdatedAt(LocalDateTime.now());
+                                    product.setActive(true);
+                                    productUpdatedCount++;
+                                } else {
+                                    product = VendorProduct.builder()
+                                            .vendor(vendorObjToUse)
+                                            .productName(productName.trim())
+                                            .vendorSku(vendorSku.trim())
+                                            .purchasePrice(purchasePrice)
+                                            .unitOfMeasure(unit.trim().toUpperCase())
+                                            .packSize(packSize.isBlank() ? null : packSize.trim())
+                                            .gstRate(gstRate)
+                                            .hsnCode(hsnCode.isBlank() ? null : hsnCode.trim())
+                                            .brand(brand.isBlank() ? null : brand.trim())
+                                            .category(category.isBlank() ? null : category.trim())
+                                            .minOrderQty(minOrderQty)
+                                            .description(description.isBlank() ? null : description.trim())
+                                            .isActive(true)
+                                            .build();
+                                    productSuccessCount++;
+                                }
+
+                                productBatch.add(product);
+                                if (productBatch.size() >= BATCH_SIZE) {
+                                    vendorProductRepository.saveAll(productBatch);
+                                    productBatch.clear();
+                                }
+                            }
+                        }
                     }
 
                 } catch (Exception e) {
@@ -233,24 +401,28 @@ public class VendorMasterBulkImportService {
                 }
             }
 
-            if (!batch.isEmpty()) vendorRepository.saveAll(batch);
+            if (!vendorBatch.isEmpty()) vendorRepository.saveAll(vendorBatch);
+            if (!productBatch.isEmpty()) vendorProductRepository.saveAll(productBatch);
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to read Excel: " + e.getMessage(), e);
         }
 
+        int combinedSuccessCount = vendorSuccessCount + productSuccessCount;
+        int combinedUpdatedCount = vendorUpdatedCount + productUpdatedCount;
+        
         String status = failedCount == 0 && totalRows > 0 ? "SUCCESS"
-                : successCount + updatedCount > 0 ? "PARTIAL"
+                : combinedSuccessCount + combinedUpdatedCount > 0 ? "PARTIAL"
                 : "FAILED";
 
-        log.info("Vendor master bulk import: total={} new={} updated={} failed={} status={}",
-                totalRows, successCount, updatedCount, failedCount, status);
+        log.info("Vendor master bulk import: total={} new(v={} p={}) updated(v={} p={}) failed={} status={}",
+                totalRows, vendorSuccessCount, productSuccessCount, vendorUpdatedCount, productUpdatedCount, failedCount, status);
 
         return VendorBulkImportResponseDTO.builder()
                 .fileName(file.getOriginalFilename())
                 .totalRows(totalRows)
-                .successCount(successCount)
-                .updatedCount(updatedCount)
+                .successCount(combinedSuccessCount)
+                .updatedCount(combinedUpdatedCount)
                 .failedCount(failedCount)
                 .skippedCount(0)
                 .status(status)
@@ -271,7 +443,7 @@ public class VendorMasterBulkImportService {
             // Row 0 — Legend
             Row legend = sheet.createRow(0);
             Cell lc = legend.createCell(0);
-            lc.setCellValue("VENDOR MASTER BULK UPLOAD  |  Row 1: Legend  |  Row 2: Headers  |  Row 3: Sample (DELETE)  |  Row 4+: Data");
+            lc.setCellValue("VENDOR MASTER BULK UPLOAD  |  Row 1: Legend  |  Row 2: Headers  |  Row 3-5: Samples (DELETE before uploading)  |  Row 6+: Data");
             CellStyle ls = wb.createCellStyle();
             ls.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
             ls.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -298,20 +470,45 @@ public class VendorMasterBulkImportService {
                 sheet.setColumnWidth(i, 5500);
             }
 
-            // Row 2 — Sample
-            Row sample = sheet.createRow(2);
+            // Row 2 — Sample 1 (Amul Milk)
+            Row sample1 = sheet.createRow(2);
             CellStyle ss = wb.createCellStyle();
             ss.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
             ss.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             Font sf = wb.createFont(); sf.setItalic(true);
             ss.setFont(sf);
-            String[] sampleData = {
+            String[] sampleData1 = {
                 "Amul Dairy Products Pvt Ltd", "Amul", "24AAAAA0000A1Z5", "AAAAA0000A",
                 "MANUFACTURER", "9876543210", "procurement@amul.com",
-                "REGULAR", "ABOVE_1CR", "www.amul.com", "Bulk import"
+                "REGULAR", "ABOVE_1CR", "www.amul.com", "Bulk import",
+                "Amul Full Cream Milk", "AMU-MILK-500", "22.00", "PCS", "500ml", "5", "0401", "Amul", "Dairy", "100", "Full cream milk tetra pack"
             };
-            for (int i = 0; i < sampleData.length; i++) {
-                Cell c = sample.createCell(i); c.setCellValue(sampleData[i]); c.setCellStyle(ss);
+            for (int i = 0; i < sampleData1.length; i++) {
+                Cell c = sample1.createCell(i); c.setCellValue(sampleData1[i]); c.setCellStyle(ss);
+            }
+
+            // Row 3 — Sample 2 (Amul Butter - Same Vendor, different product)
+            Row sample2 = sheet.createRow(3);
+            String[] sampleData2 = {
+                "Amul Dairy Products Pvt Ltd", "Amul", "24AAAAA0000A1Z5", "AAAAA0000A",
+                "MANUFACTURER", "9876543210", "procurement@amul.com",
+                "REGULAR", "ABOVE_1CR", "www.amul.com", "Bulk import",
+                "Amul Salted Butter", "AMU-BUTTER-100", "56.00", "PCS", "100g", "12", "0405", "Amul", "Dairy", "50", "Salted table butter"
+            };
+            for (int i = 0; i < sampleData2.length; i++) {
+                Cell c = sample2.createCell(i); c.setCellValue(sampleData2[i]); c.setCellStyle(ss);
+            }
+
+            // Row 4 — Sample 3 (Britannia Marie Gold - Different Vendor, different product)
+            Row sample3 = sheet.createRow(4);
+            String[] sampleData3 = {
+                "Britannia Industries Ltd", "Britannia", "24BBBBB1111B2Z6", "BBBBB1111B",
+                "DISTRIBUTOR", "9988776655", "sales@britannia.com",
+                "REGULAR", "ABOVE_1CR", "www.britannia.co.in", "Bulk onboarding",
+                "Britannia Marie Gold Biscuit", "BRI-MARIE-250", "30.00", "PCS", "250g", "18", "1905", "Britannia", "Biscuits", "200", "Tea time Marie Gold biscuits"
+            };
+            for (int i = 0; i < sampleData3.length; i++) {
+                Cell c = sample3.createCell(i); c.setCellValue(sampleData3[i]); c.setCellStyle(ss);
             }
 
             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
@@ -349,7 +546,7 @@ public class VendorMasterBulkImportService {
     }
 
     private boolean isRowEmpty(Row row) {
-        for (int i = COL_LEGAL_NAME; i <= COL_NOTES; i++) {
+        for (int i = COL_LEGAL_NAME; i <= COL_DESCRIPTION; i++) {
             Cell cell = row.getCell(i, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
             if (cell != null && cell.getCellType() != CellType.BLANK
                     && !getCellString(row, i).isBlank()) return false;

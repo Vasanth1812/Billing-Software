@@ -22,9 +22,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // The endpoint vendors will connect to.
-        // setAllowedOriginPatterns("*") allows CORS for frontend clients
-        // withSockJS() provides fallback options for older browsers
+        // Direct native WebSockets endpoint
+        registry.addEndpoint("/ws-auction")
+                .setAllowedOriginPatterns("*");
+
+        // SockJS fallback options endpoint
         registry.addEndpoint("/ws-auction")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();

@@ -16,23 +16,19 @@ public interface VendorDocumentRepository extends JpaRepository<VendorDocument, 
     List<VendorDocument> findByVendorIdOrderByCreatedAtDesc(UUID vendorId);
 
     // Documents expiring within N days — used by compliance scheduler
-    @Query("""
-            SELECT d FROM VendorDocument d
-            WHERE d.uploadStatus = 'APPROVED'
-              AND d.expiryDate IS NOT NULL
-              AND d.expiryDate BETWEEN :today AND :cutoff
-            ORDER BY d.expiryDate ASC
-            """)
+    @Query("SELECT d FROM VendorDocument d " +
+           "WHERE d.uploadStatus = 'APPROVED' " +
+           "  AND d.expiryDate IS NOT NULL " +
+           "  AND d.expiryDate BETWEEN :today AND :cutoff " +
+           "ORDER BY d.expiryDate ASC")
     List<VendorDocument> findExpiringDocuments(@Param("today") LocalDate today,
                                                 @Param("cutoff") LocalDate cutoff);
 
     // Already expired approved documents
-    @Query("""
-            SELECT d FROM VendorDocument d
-            WHERE d.uploadStatus = 'APPROVED'
-              AND d.expiryDate IS NOT NULL
-              AND d.expiryDate < :today
-            """)
+    @Query("SELECT d FROM VendorDocument d " +
+           "WHERE d.uploadStatus = 'APPROVED' " +
+           "  AND d.expiryDate IS NOT NULL " +
+           "  AND d.expiryDate < :today")
     List<VendorDocument> findExpiredDocuments(@Param("today") LocalDate today);
 
     void deleteByVendorId(UUID vendorId);

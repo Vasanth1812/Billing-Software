@@ -37,6 +37,8 @@ public class PurchaseRequestDTO {
         @NotNull(message = "Product ID is required")
         private String productId;
 
+        private String productName;
+
         @NotNull(message = "Quantity is required")
         @DecimalMin(value = "0.001", message = "Quantity must be greater than 0")
         private BigDecimal quantity;

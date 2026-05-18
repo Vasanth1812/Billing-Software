@@ -503,6 +503,66 @@ public class VendorService {
         documentRepository.delete(doc);
     }
 
+    // ─── Vendor Products (Catalog) ───────────────────────────────────────────────
+
+    /**
+     * Add a product to a vendor's catalog (vendor_products table).
+     * POST /api/vendors/{id}/products
+     */
+    @Transactional
+    public VendorProductDTO addVendorProduct(UUID vendorId, VendorProductRequestDTO dto) {
+        Vendor vendor = getVendorEntity(vendorId);
+
+        // Vendor SKU must be unique per vendor
+        if (vendorProductRepository.existsByVendorIdAndVendorSku(vendorId, dto.getVendorSku())) {
+            throw new IllegalArgumentException(
+                "Vendor SKU '" + dto.getVendorSku() + "' already exists for this vendor.");
+        }
+
+        VendorProduct product = VendorProduct.builder()
+                .vendor(vendor)
+                .productName(dto.getProductName().trim())
+                .vendorSku(dto.getVendorSku().trim())
+                .purchasePrice(dto.getPurchasePrice())
+                .unitOfMeasure(dto.getUnitOfMeasure().trim().toUpperCase())
+                .packSize(dto.getPackSize())
+                .gstRate(dto.getGstRate())
+                .hsnCode(dto.getHsnCode())
+                .brand(dto.getBrand())
+                .category(dto.getCategory())
+                .minOrderQty(dto.getMinOrderQty())
+                .description(dto.getDescription())
+                .mappedProductId(dto.getMappedProductId())
+                .isActive(true)
+                .build();
+
+        product = vendorProductRepository.save(product);
+        log.info("Vendor product added: sku={} vendor={}", dto.getVendorSku(), vendor.getVendorCode());
+        return toVendorProductDTO(product);
+    }
+
+    /** List all active products in a vendor's catalog */
+    @Transactional(readOnly = true)
+    public List<VendorProductDTO> getVendorProducts(UUID vendorId) {
+        getVendorEntity(vendorId); // validate vendor exists
+        return vendorProductRepository
+                .findByVendorIdAndIsActiveTrueOrderByProductNameAsc(vendorId)
+                .stream()
+                .map(this::toVendorProductDTO)
+                .collect(Collectors.toList());
+    }
+
+    /** Soft-delete a vendor product (sets isActive = false) */
+    @Transactional
+    public void deleteVendorProduct(UUID productId) {
+        VendorProduct product = vendorProductRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Vendor product not found: " + productId));
+        product.setActive(false);
+        product.setUpdatedAt(LocalDateTime.now());
+        vendorProductRepository.save(product);
+        log.info("Vendor product deactivated: id={}", productId);
+    }
+
     // ─── Internal Compliance Refresh ────────────────────────────────────────────
 
     /**
@@ -674,6 +734,29 @@ public class VendorService {
     private VendorDocument getDocumentEntity(UUID id) {
         return documentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + id));
+    }
+
+    private VendorProductDTO toVendorProductDTO(VendorProduct p) {
+        return VendorProductDTO.builder()
+                .id(p.getId())
+                .vendorCode(p.getVendor().getVendorCode())
+                .vendorLegalName(p.getVendor().getLegalName())
+                .productName(p.getProductName())
+                .vendorSku(p.getVendorSku())
+                .purchasePrice(p.getPurchasePrice())
+                .unitOfMeasure(p.getUnitOfMeasure())
+                .packSize(p.getPackSize())
+                .gstRate(p.getGstRate())
+                .hsnCode(p.getHsnCode())
+                .brand(p.getBrand())
+                .category(p.getCategory())
+                .minOrderQty(p.getMinOrderQty())
+                .description(p.getDescription())
+                .mappedProductId(p.getMappedProductId())
+                .isActive(p.isActive())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
+                .build();
     }
 
     /** SHA-256 hash of a string (for bank account duplicate detection) */

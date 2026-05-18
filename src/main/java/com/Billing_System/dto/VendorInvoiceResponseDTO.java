@@ -21,6 +21,7 @@ public class VendorInvoiceResponseDTO {
     private String purchaseOrderNumber;
     
     private LocalDate invoiceDate;
+    private LocalDate dueDate;
     private BigDecimal invoiceAmount;
     private BigDecimal gstAmount;
     private BigDecimal totalAmount;

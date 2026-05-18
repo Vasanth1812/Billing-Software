@@ -46,6 +46,9 @@ public class VendorInvoice {
     @Column(name = "invoice_date", nullable = false)
     private LocalDate invoiceDate;
 
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
     // Financial Totals
     @Column(name = "invoice_amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal invoiceAmount; // Base amount without GST

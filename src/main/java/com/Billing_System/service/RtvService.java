@@ -1,13 +1,19 @@
 package com.Billing_System.service;
 
+import com.Billing_System.dto.RtvRequestDTO;
 import com.Billing_System.dto.RtvResponseDTO;
+import com.Billing_System.entity.GRN;
 import com.Billing_System.entity.RtvRequest;
+import com.Billing_System.entity.User;
+import com.Billing_System.repository.GRNRepository;
 import com.Billing_System.repository.RtvRequestRepository;
+import com.Billing_System.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +25,8 @@ import java.util.stream.Collectors;
 public class RtvService {
 
     private final RtvRequestRepository rtvRequestRepository;
+    private final GRNRepository grnRepository;
+    private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
     public List<RtvResponseDTO> getAllRtvRequests() {
@@ -31,6 +39,34 @@ public class RtvService {
     public RtvResponseDTO getRtvById(UUID id) {
         RtvRequest rtv = rtvRequestRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("RTV Request not found"));
+        return mapToDTO(rtv);
+    }
+
+    @Transactional
+    public RtvResponseDTO createRtvRequest(RtvRequestDTO dto, UUID userId) {
+        log.info("Initiating dynamic Return-to-Vendor request for GRN ID: {}", dto.getGrnId());
+
+        GRN grn = grnRepository.findById(dto.getGrnId())
+                .orElseThrow(() -> new IllegalArgumentException("Linked GRN not found"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Active user not found"));
+
+        String rtvNumber = "RTV-" + (System.currentTimeMillis() % 10000000);
+
+        RtvRequest rtv = RtvRequest.builder()
+                .rtvNumber(rtvNumber)
+                .grn(grn)
+                .purchaseOrder(grn.getPurchaseOrder())
+                .vendor(grn.getVendor())
+                .status(dto.getStatus() != null ? dto.getStatus() : "DEBIT_NOTE_RAISED")
+                .totalReturnValue(dto.getTotalReturnValue() != null ? dto.getTotalReturnValue() : BigDecimal.ZERO)
+                .createdBy(user)
+                .build();
+
+        rtv = rtvRequestRepository.save(rtv);
+        log.info("Return request {} initiated successfully for vendor {}", rtv.getRtvNumber(), grn.getVendor().getLegalName());
+
         return mapToDTO(rtv);
     }
 

@@ -19,6 +19,7 @@ public class GRNRequestDTO {
 
     private String vendorInvoiceNumber;
     private String remarks;
+    private String status;
 
     private List<GRNItemRequestDTO> items;
 }

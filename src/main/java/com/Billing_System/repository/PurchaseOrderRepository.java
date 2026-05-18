@@ -15,36 +15,29 @@ import java.util.UUID;
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UUID> {
 
        /**
-        * JOIN FETCH supplier so listing purchase orders does NOT fire N queries for
-        * supplier.
+        * List all POs with vendor eagerly loaded (no N+1).
         * The @OneToMany items collection is handled by @BatchSize(25) on the entity.
         *
-        * NOTE: You CANNOT do JOIN FETCH on both supplier (ManyToOne) AND items
-        * (OneToMany)
+        * NOTE: You CANNOT do JOIN FETCH on both vendor (ManyToOne) AND items (OneToMany)
         * in the same query when using pagination — it causes a Cartesian product.
-        * 
         * @BatchSize on the items collection is the correct solution for OneToMany.
         */
-       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.supplier ORDER BY po.createdAt DESC")
+       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.vendor ORDER BY po.createdAt DESC")
        List<PurchaseOrder> findAllByOrderByCreatedAtDesc();
 
        /**
-        * Single purchase with supplier AND items eagerly loaded in one query using
-        * JOIN FETCH.
+        * Single purchase with vendor AND items eagerly loaded in one query.
         * Safe for a single record (no Cartesian product issue for a single row).
         */
        @Query("SELECT po FROM PurchaseOrder po " +
-                     "LEFT JOIN FETCH po.supplier " +
+                     "LEFT JOIN FETCH po.vendor " +
                      "LEFT JOIN FETCH po.items i " +
                      "LEFT JOIN FETCH i.product " +
                      "WHERE po.id = :id")
        Optional<PurchaseOrder> findByIdWithDetails(@Param("id") UUID id);
 
-       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.supplier WHERE po.supplier.id = :supplierId")
-       List<PurchaseOrder> findBySupplierId(@Param("supplierId") UUID supplierId);
-
-       /** Vendor PO history — all POs linked to a specific Vendor record */
-       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.supplier WHERE po.vendor.id = :vendorId ORDER BY po.createdAt DESC")
+       /** All POs linked to a specific Vendor — used for vendor PO history */
+       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.vendor WHERE po.vendor.id = :vendorId ORDER BY po.createdAt DESC")
        List<PurchaseOrder> findByVendorId(@Param("vendorId") UUID vendorId);
 
        /** Summary stats for a vendor — total count and spend */
@@ -52,7 +45,7 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
        Object[] getVendorStats(@Param("vendorId") UUID vendorId);
 
        @Query("SELECT DISTINCT po FROM PurchaseOrder po " +
-                     "LEFT JOIN FETCH po.supplier " +
+                     "LEFT JOIN FETCH po.vendor " +
                      "LEFT JOIN FETCH po.items i " +
                      "LEFT JOIN FETCH i.product " +
                      "WHERE po.invoiceDate BETWEEN :from AND :to ORDER BY po.invoiceDate DESC")

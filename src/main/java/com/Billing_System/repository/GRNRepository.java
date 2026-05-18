@@ -16,8 +16,6 @@ public interface GRNRepository extends JpaRepository<GRN, UUID> {
     List<GRN> findByPurchaseOrderId(UUID purchaseOrderId);
 
     List<GRN> findByVendorId(UUID vendorId);
-    
-    List<GRN> findBySupplierId(UUID supplierId);
-    
+
     List<GRN> findByStatus(String status);
 }

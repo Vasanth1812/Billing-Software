@@ -134,7 +134,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of("*"));          // all origins for dev
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));                  // allow Authorization header
         config.setAllowCredentials(true);                        // allow cookies/auth headers
         config.setMaxAge(3600L);                                 // cache preflight for 1 hour

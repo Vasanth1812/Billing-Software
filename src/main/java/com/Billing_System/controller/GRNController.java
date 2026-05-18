@@ -50,6 +50,14 @@ public class GRNController {
     }
 
     /**
+     * Get all Goods Received Notes.
+     */
+    @GetMapping
+    public ResponseEntity<List<GRNResponseDTO>> getAllGRNs() {
+        return ResponseEntity.ok(grnService.getAllGRNs());
+    }
+
+    /**
      * Get a specific GRN by ID.
      */
     @GetMapping("/{id}")

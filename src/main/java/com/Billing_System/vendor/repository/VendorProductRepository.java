@@ -36,15 +36,13 @@ public interface VendorProductRepository extends JpaRepository<VendorProduct, UU
     List<String> findAllVendorSkusByVendorId(@Param("vendorId") UUID vendorId);
 
     /** Search vendor products by name or SKU */
-    @Query("""
-            SELECT vp FROM VendorProduct vp
-            WHERE vp.vendor.id = :vendorId
-              AND vp.isActive = true
-              AND (LOWER(vp.productName) LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(vp.vendorSku)   LIKE LOWER(CONCAT('%', :search, '%'))
-                OR LOWER(vp.brand)       LIKE LOWER(CONCAT('%', :search, '%')))
-            ORDER BY vp.productName ASC
-            """)
+    @Query("SELECT vp FROM VendorProduct vp " +
+           "WHERE vp.vendor.id = :vendorId " +
+           "  AND vp.isActive = true " +
+           "  AND (LOWER(vp.productName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "    OR LOWER(vp.vendorSku)   LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "    OR LOWER(vp.brand)       LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY vp.productName ASC")
     List<VendorProduct> searchByVendor(@Param("vendorId") UUID vendorId,
                                         @Param("search") String search);
 }

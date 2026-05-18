@@ -28,6 +28,7 @@ public class PurchaseService {
     private final TaxCalculator taxCalculator;
     private final com.Billing_System.util.InvoiceNumberGenerator invoiceNumberGenerator;
     private final com.Billing_System.vendor.repository.VendorRepository vendorRepository;
+    private final com.Billing_System.vendor.repository.VendorProductRepository vendorProductRepository;
 
     /** List all purchase orders + sales (merged), newest first */
     @Transactional(readOnly = true)
@@ -137,11 +138,30 @@ public class PurchaseService {
         for (PurchaseRequestDTO.PurchaseItemDTO itemDto : dto.getItems()) {
             UUID pId = UUID.fromString(itemDto.getProductId());
             Product product = productMap.get(pId);
-            if (product == null) {
-                throw new IllegalArgumentException("Product not found with ID: " + itemDto.getProductId());
+            
+            // Fallback: If not in main Products, try Vendor Products
+            // Priority 1: Use name from DTO if provided
+            String pName = itemDto.getProductName();
+            BigDecimal defaultGst = (product != null) ? product.getGstRate() : BigDecimal.valueOf(18);
+
+            if (pName == null || pName.trim().isEmpty()) {
+                // Priority 2: Use name from Store Product
+                pName = (product != null) ? product.getName() : "Unknown Product";
+
+                if (product == null) {
+                    // Priority 3: Use name from VendorProduct catalog
+                    var vp = vendorProductRepository.findById(pId).orElse(null);
+                    if (vp != null) {
+                        pName = vp.getProductName();
+                        defaultGst = vp.getGstRate();
+                    } else {
+                        // Priority 4: Final fallback
+                        pName = "Loose Item: " + itemDto.getProductId();
+                    }
+                }
             }
 
-            BigDecimal gstRate = itemDto.getGstRate() != null ? itemDto.getGstRate() : product.getGstRate();
+            BigDecimal gstRate = itemDto.getGstRate() != null ? itemDto.getGstRate() : defaultGst;
             if (gstRate == null)
                 gstRate = BigDecimal.ZERO;
 
@@ -157,6 +177,8 @@ public class PurchaseService {
 
             PurchaseItem item = PurchaseItem.builder()
                     .product(product)
+                    .productName(pName)
+                    .vendorProductId(pId) // Store the catalog/product ID for future reference
                     .quantity(itemDto.getQuantity())
                     .purchaseRate(itemDto.getPurchaseRate())
                     .discountPct(discountPct)
@@ -194,31 +216,140 @@ public class PurchaseService {
         }
 
         PurchaseOrder savedOrder = purchaseOrderRepository.save(order);
+        return savedOrder;
+    }
 
-        // 6 & 7. Update stock and write ledger entries (products already in-memory, no
-        // extra queries)
-        for (PurchaseItem item : savedOrder.getItems()) {
-            Product product = item.getProduct();
-            BigDecimal currentStock = product.getCurrentStock() != null
-                    ? product.getCurrentStock()
-                    : BigDecimal.ZERO;
+    public PurchaseOrder updatePurchase(UUID id, PurchaseRequestDTO dto) {
+        PurchaseOrder existing = purchaseOrderRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new IllegalArgumentException("Purchase order not found with ID: " + id));
 
-            BigDecimal newStock = currentStock.add(item.getQuantity());
-            product.setCurrentStock(newStock);
-            productRepository.save(product);
-
-            StockLedger ledger = StockLedger.builder()
-                    .product(product)
-                    .transactionType("PURCHASE")
-                    .referenceId(savedOrder.getId())
-                    .quantityIn(item.getQuantity())
-                    .quantityOut(BigDecimal.ZERO)
-                    .balanceStock(newStock)
-                    .transactionDate(LocalDateTime.now())
-                    .build();
-            stockLedgerRepository.save(ledger);
+        // Keep a copy of existing items mapped by their ID to resolve unmodified items
+        Map<UUID, PurchaseItem> existingItemsMap = new HashMap<>();
+        for (PurchaseItem item : existing.getItems()) {
+            existingItemsMap.put(item.getId(), item);
         }
 
-        return savedOrder;
+        // 1. Remove existing items from database to prevent duplicates
+        purchaseItemRepository.deleteAll(existing.getItems());
+        existing.getItems().clear();
+
+        // Load Vendor
+        UUID vendorUuid = UUID.fromString(dto.getVendorId());
+        com.Billing_System.vendor.entity.Vendor vendor = vendorRepository
+                .findByIdAndDeletedAtIsNull(vendorUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Vendor not found: " + dto.getVendorId()));
+
+        existing.setVendor(vendor);
+        existing.setInvoiceDate(dto.getInvoiceDate() != null ? dto.getInvoiceDate() : LocalDate.now());
+        existing.setPaymentMode(dto.getPaymentMode());
+        existing.setDueDate(dto.getDueDate());
+        existing.setStatus(dto.getStatus() != null ? dto.getStatus() : "pending");
+
+        // Collect all new product IDs that are NOT existing purchase item IDs
+        List<UUID> productUuids = new ArrayList<>();
+        for (PurchaseRequestDTO.PurchaseItemDTO itemDto : dto.getItems()) {
+            UUID pId = UUID.fromString(itemDto.getProductId());
+            if (!existingItemsMap.containsKey(pId)) {
+                productUuids.add(pId);
+            }
+        }
+
+        Map<UUID, Product> productMap = productRepository.findAllById(productUuids)
+                .stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal totalTax = BigDecimal.ZERO;
+
+        for (PurchaseRequestDTO.PurchaseItemDTO itemDto : dto.getItems()) {
+            UUID pId = UUID.fromString(itemDto.getProductId());
+            
+            Product product = null;
+            String pName = itemDto.getProductName();
+            UUID vendorProductId = null;
+            BigDecimal defaultGst = BigDecimal.valueOf(18);
+
+            // Check if this item is an unmodified existing item
+            if (existingItemsMap.containsKey(pId)) {
+                PurchaseItem originalItem = existingItemsMap.get(pId);
+                product = originalItem.getProduct();
+                vendorProductId = originalItem.getVendorProductId();
+                // If productName in DTO is not null/empty and not "Unknown Product", use it. Otherwise, fallback to original item's productName
+                if (pName == null || pName.trim().isEmpty() || "Unknown Product".equalsIgnoreCase(pName)) {
+                    pName = originalItem.getProductName();
+                }
+                if (product != null) {
+                    defaultGst = product.getGstRate();
+                } else if (vendorProductId != null) {
+                    var vp = vendorProductRepository.findById(vendorProductId).orElse(null);
+                    if (vp != null) {
+                        defaultGst = vp.getGstRate();
+                    }
+                }
+            } else {
+                // It's a new or changed product selection
+                product = productMap.get(pId);
+                vendorProductId = pId; // The ID sent is the new VendorProduct/Product ID
+                
+                if (pName == null || pName.trim().isEmpty()) {
+                    pName = (product != null) ? product.getName() : "Unknown Product";
+                    if (product == null) {
+                        var vp = vendorProductRepository.findById(pId).orElse(null);
+                        if (vp != null) {
+                            pName = vp.getProductName();
+                            defaultGst = vp.getGstRate();
+                        } else {
+                            pName = "Loose Item: " + itemDto.getProductId();
+                        }
+                    }
+                } else {
+                    if (product != null) {
+                        defaultGst = product.getGstRate();
+                    } else {
+                        var vp = vendorProductRepository.findById(pId).orElse(null);
+                        if (vp != null) {
+                            defaultGst = vp.getGstRate();
+                        }
+                    }
+                }
+            }
+
+            BigDecimal gstRate = itemDto.getGstRate() != null ? itemDto.getGstRate() : defaultGst;
+            BigDecimal discountPct = itemDto.getDiscountPct() != null ? itemDto.getDiscountPct() : BigDecimal.ZERO;
+
+            TaxCalculator.TaxResult tax = taxCalculator.calculate(
+                    itemDto.getQuantity(), itemDto.getPurchaseRate(), gstRate, discountPct);
+
+            totalAmount = totalAmount.add(tax.taxableAmount());
+            totalTax = totalTax.add(tax.gstAmount());
+
+            PurchaseItem item = PurchaseItem.builder()
+                    .purchaseOrder(existing)
+                    .product(product)
+                    .productName(pName)
+                    .vendorProductId(vendorProductId)
+                    .quantity(itemDto.getQuantity())
+                    .purchaseRate(itemDto.getPurchaseRate())
+                    .discountPct(discountPct)
+                    .gstRate(gstRate)
+                    .gstAmount(tax.gstAmount())
+                    .totalAmount(tax.lineTotal())
+                    .build();
+
+            existing.getItems().add(item);
+        }
+
+        existing.setTotalAmount(totalAmount);
+        existing.setGstAmount(totalTax);
+        existing.setGrandTotal(totalAmount.add(totalTax));
+
+        return purchaseOrderRepository.save(existing);
+    }
+
+    public PurchaseOrder updateStatus(UUID id, String status) {
+        PurchaseOrder existing = purchaseOrderRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new IllegalArgumentException("Purchase order not found with ID: " + id));
+        existing.setStatus(status);
+        return purchaseOrderRepository.save(existing);
     }
 }

@@ -26,5 +26,6 @@ public class GRNItemResponseDTO {
     private BigDecimal rejectedQuantity;
     
     private BigDecimal unitPrice;
+    private BigDecimal gstRate;
     private String remarks;
 }

@@ -2,6 +2,7 @@ package com.Billing_System.vendor.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.Billing_System.entity.User;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -35,6 +36,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Vendor {
 
     @Id

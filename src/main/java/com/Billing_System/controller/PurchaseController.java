@@ -69,4 +69,24 @@ public class PurchaseController {
         PurchaseOrder saved = purchaseService.savePurchase(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
+
+    /**
+     * PUT /api/purchase-orders/{id}
+     * Update existing purchase order
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<PurchaseOrder> updatePurchase(@PathVariable UUID id, @Valid @RequestBody PurchaseRequestDTO dto) {
+        PurchaseOrder updated = purchaseService.updatePurchase(id, dto);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * PUT /api/purchase-orders/{id}/status
+     * Update purchase order status
+     */
+    @PutMapping("/{id}/status")
+    public ResponseEntity<PurchaseOrder> updateStatus(@PathVariable UUID id, @RequestParam String status) {
+        PurchaseOrder updated = purchaseService.updateStatus(id, status);
+        return ResponseEntity.ok(updated);
+    }
 }

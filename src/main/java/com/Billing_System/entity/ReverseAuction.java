@@ -29,7 +29,7 @@ public class ReverseAuction {
     @Column(name = "auction_number", nullable = false, unique = true, length = 20)
     private String auctionNumber;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
@@ -52,7 +52,7 @@ public class ReverseAuction {
     @Column(name = "winning_bid_id")
     private UUID winningBidId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "created_by_id", nullable = false)
     private User createdBy;
 
