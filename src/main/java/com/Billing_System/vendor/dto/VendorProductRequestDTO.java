@@ -65,6 +65,15 @@ public class VendorProductRequestDTO {
     @Size(max = 500, message = "Description must not exceed 500 characters")
     private String description;
 
+    /** Batch number for the product */
+    @NotBlank(message = "Batch number is required")
+    @Size(max = 100, message = "Batch number must not exceed 100 characters")
+    private String batchNumber;
+
+    /** Expiry date of the batch */
+    @NotNull(message = "Expiry date is required")
+    private java.time.LocalDate expiryDate;
+
     /**
      * Optional: link to store's product table (UUID from products table).
      * Usually set later during GRN matching. Leave null on creation.

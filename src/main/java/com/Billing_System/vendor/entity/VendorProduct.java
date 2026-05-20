@@ -84,6 +84,14 @@ public class VendorProduct {
     @Column(name = "description", length = 500)
     private String description;
 
+    /** Batch number for the product */
+    @Column(name = "batch_number", length = 100)
+    private String batchNumber;
+
+    /** Expiry date of the batch */
+    @Column(name = "expiry_date")
+    private java.time.LocalDate expiryDate;
+
     /**
      * Optional link to store's product table.
      * Set during GRN matching — maps vendor product to store product.

@@ -534,15 +534,17 @@ public class VendorMasterBulkImportService {
     private String getCellString(Row row, int col) {
         Cell cell = row.getCell(col, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         if (cell == null) return "";
-        return switch (cell.getCellType()) {
-            case STRING  -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue().trim();
+            case NUMERIC:
                 double val = cell.getNumericCellValue();
-                yield val == Math.floor(val) ? String.valueOf((long) val) : String.valueOf(val);
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            default -> "";
-        };
+                return val == Math.floor(val) ? String.valueOf((long) val) : String.valueOf(val);
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            default:
+                return "";
+        }
     }
 
     private boolean isRowEmpty(Row row) {

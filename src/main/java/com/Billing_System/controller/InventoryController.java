@@ -54,6 +54,13 @@ public class InventoryController {
         return ResponseEntity.ok(inventoryService.getAllBinLocations());
     }
 
+    @PutMapping("/bins/{identifier}/slot")
+    public ResponseEntity<BinLocationResponseDTO> slotProductToBin(
+            @PathVariable String identifier,
+            @Valid @RequestBody BinSlotRequestDTO request) {
+        return ResponseEntity.ok(inventoryService.slotProductToBin(identifier, request));
+    }
+
     // --- STO (Stock Transfer Order) APIs ---
 
     @PostMapping("/sto")

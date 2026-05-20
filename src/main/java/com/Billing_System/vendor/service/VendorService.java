@@ -185,13 +185,23 @@ public class VendorService {
         }
 
         String currentStage = vendor.getOnboardingStage();
-        String nextStage = switch (currentStage) {
-            case "CATEGORY_MANAGER_REVIEW" -> "QUALITY_REVIEW";
-            case "QUALITY_REVIEW"          -> "FINANCE_REVIEW";
-            case "FINANCE_REVIEW"          -> "DIRECTOR_REVIEW";
-            case "DIRECTOR_REVIEW"         -> null; // final approval — vendor goes ACTIVE
-            default -> throw new IllegalStateException("Unknown onboarding stage: " + currentStage);
-        };
+        String nextStage;
+        switch (currentStage) {
+            case "CATEGORY_MANAGER_REVIEW":
+                nextStage = "QUALITY_REVIEW";
+                break;
+            case "QUALITY_REVIEW":
+                nextStage = "FINANCE_REVIEW";
+                break;
+            case "FINANCE_REVIEW":
+                nextStage = "DIRECTOR_REVIEW";
+                break;
+            case "DIRECTOR_REVIEW":
+                nextStage = null; // final approval - vendor goes ACTIVE
+                break;
+            default:
+                throw new IllegalStateException("Unknown onboarding stage: " + currentStage);
+        }
 
         vendor.setOnboardingStage(nextStage);
         vendor.setUpdatedAt(LocalDateTime.now());
@@ -532,6 +542,8 @@ public class VendorService {
                 .category(dto.getCategory())
                 .minOrderQty(dto.getMinOrderQty())
                 .description(dto.getDescription())
+                .batchNumber(dto.getBatchNumber())
+                .expiryDate(dto.getExpiryDate())
                 .mappedProductId(dto.getMappedProductId())
                 .isActive(true)
                 .build();
@@ -752,6 +764,8 @@ public class VendorService {
                 .category(p.getCategory())
                 .minOrderQty(p.getMinOrderQty())
                 .description(p.getDescription())
+                .batchNumber(p.getBatchNumber())
+                .expiryDate(p.getExpiryDate())
                 .mappedProductId(p.getMappedProductId())
                 .isActive(p.isActive())
                 .createdAt(p.getCreatedAt())

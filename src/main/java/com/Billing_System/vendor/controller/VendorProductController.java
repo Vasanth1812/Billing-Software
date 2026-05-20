@@ -112,6 +112,7 @@ public class VendorProductController {
          * Single vendor product detail.
          */
         @GetMapping("/api/vendor-products/{id}")
+        @Transactional(readOnly = true)
         public ResponseEntity<VendorProductDTO> getById(@PathVariable UUID id) {
                 VendorProduct product = productRepository.findById(id)
                                 .orElseThrow(() -> new IllegalArgumentException("Vendor product not found: " + id));
@@ -126,6 +127,7 @@ public class VendorProductController {
          * Body: { "productId": "store-product-uuid" }
          */
         @PostMapping("/api/vendor-products/{id}/map-product")
+        @Transactional
         public ResponseEntity<VendorProductDTO> mapToStoreProduct(
                         @PathVariable UUID id,
                         @RequestBody Map<String, String> body) {
@@ -153,6 +155,19 @@ public class VendorProductController {
         }
 
         /**
+         * GET /api/vendor-products
+         * List all active vendor products across all vendors (for global product screen).
+         */
+        @GetMapping("/api/vendor-products")
+        @Transactional(readOnly = true)
+        public ResponseEntity<List<VendorProductDTO>> getAllProductsGlobal() {
+                List<VendorProduct> products = productRepository.findAll();
+                return ResponseEntity.ok(products.stream()
+                                .map(this::toDTO)
+                                .collect(Collectors.toList()));
+        }
+
+        /**
          * PUT /api/vendor-products/{id}/deactivate
          * Deactivate a vendor product (soft delete — keeps history).
          */
@@ -164,6 +179,54 @@ public class VendorProductController {
                 vp.setUpdatedAt(LocalDateTime.now());
                 productRepository.save(vp);
                 return ResponseEntity.ok(Map.of("message", "Vendor product deactivated successfully"));
+        }
+
+        /**
+         * PUT /api/vendor-products/{id}
+         * Update an existing vendor product's details.
+         */
+        @PutMapping("/api/vendor-products/{id}")
+        @Transactional
+        public ResponseEntity<VendorProductDTO> updateVendorProduct(
+                        @PathVariable UUID id,
+                        @RequestBody com.Billing_System.vendor.dto.VendorProductRequestDTO dto) {
+
+                VendorProduct vp = productRepository.findById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Vendor product not found: " + id));
+
+                vp.setProductName(dto.getProductName());
+                vp.setVendorSku(dto.getVendorSku());
+                vp.setPurchasePrice(dto.getPurchasePrice());
+                vp.setUnitOfMeasure(dto.getUnitOfMeasure());
+                vp.setPackSize(dto.getPackSize());
+                vp.setGstRate(dto.getGstRate());
+                vp.setHsnCode(dto.getHsnCode());
+                vp.setBrand(dto.getBrand());
+                vp.setCategory(dto.getCategory());
+                vp.setMinOrderQty(dto.getMinOrderQty());
+                vp.setDescription(dto.getDescription());
+                vp.setBatchNumber(dto.getBatchNumber());
+                vp.setExpiryDate(dto.getExpiryDate());
+                if (dto.getMappedProductId() != null) {
+                        vp.setMappedProductId(dto.getMappedProductId());
+                }
+                vp.setUpdatedAt(LocalDateTime.now());
+
+                productRepository.save(vp);
+                return ResponseEntity.ok(toDTO(vp));
+        }
+
+        /**
+         * DELETE /api/vendor-products/{id}
+         * Delete/deactivate a vendor product.
+         */
+        @DeleteMapping("/api/vendor-products/{id}")
+        @Transactional
+        public ResponseEntity<Map<String, String>> deleteVendorProduct(@PathVariable UUID id) {
+                VendorProduct vp = productRepository.findById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Vendor product not found: " + id));
+                productRepository.delete(vp);
+                return ResponseEntity.ok(Map.of("message", "Vendor product deleted successfully"));
         }
 
         // ── Mapping Helper ────────────────────────────────────────────────────────
@@ -184,6 +247,8 @@ public class VendorProductController {
                                 .category(vp.getCategory())
                                 .minOrderQty(vp.getMinOrderQty())
                                 .description(vp.getDescription())
+                                .batchNumber(vp.getBatchNumber())
+                                .expiryDate(vp.getExpiryDate())
                                 .mappedProductId(vp.getMappedProductId())
                                 .isActive(vp.isActive())
                                 .createdAt(vp.getCreatedAt())

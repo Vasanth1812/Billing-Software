@@ -427,21 +427,27 @@ public class VendorBulkImportService {
     private String getCellString(Row row, int colIdx) {
         Cell cell = row.getCell(colIdx, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         if (cell == null) return "";
-        return switch (cell.getCellType()) {
-            case STRING  -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
-                if (DateUtil.isCellDateFormatted(cell)) yield cell.getLocalDateTimeCellValue().toString();
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue().trim();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getLocalDateTimeCellValue().toString();
+                }
                 double val = cell.getNumericCellValue();
                 // Return as integer string if whole number
-                yield val == Math.floor(val) ? String.valueOf((long) val) : String.valueOf(val);
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            case FORMULA -> {
-                try { yield String.valueOf(cell.getNumericCellValue()); }
-                catch (Exception e) { yield cell.getStringCellValue().trim(); }
-            }
-            default -> "";
-        };
+                return val == Math.floor(val) ? String.valueOf((long) val) : String.valueOf(val);
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                try {
+                    return String.valueOf(cell.getNumericCellValue());
+                } catch (Exception e) {
+                    return cell.getStringCellValue().trim();
+                }
+            default:
+                return "";
+        }
     }
 
     private boolean isRowEmpty(Row row) {

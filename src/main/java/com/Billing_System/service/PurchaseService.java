@@ -51,6 +51,7 @@ public class PurchaseService {
                     .amount(po.getGrandTotal())
                     .status(po.getStatus())
                     .createdAt(po.getCreatedAt())
+                    .itemCount(po.getItems() != null ? po.getItems().size() : 0)
                     .build());
         }
 
@@ -67,6 +68,7 @@ public class PurchaseService {
                     .amount(si.getGrandTotal())
                     .status(si.getStatus())
                     .createdAt(si.getCreatedAt())
+                    .itemCount(si.getItems() != null ? si.getItems().size() : 0)
                     .build());
         }
 

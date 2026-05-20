@@ -61,45 +61,49 @@ public class VendorEventListener {
         // ── KYC Status Changes ────────────────────────────────────────────────
         if ("KYC".equals(event.getStatusType())) {
             switch (event.getNewStatus()) {
-                case "ACTIVE" -> {
+                case "ACTIVE":
                     log.info("[VENDOR ACTIVATED] {} ({}) is now ACTIVE — procurement can raise POs",
                             event.getVendorCode(), event.getLegalName());
                     notificationService.sendVendorActivatedEmail(vendor);
-                }
-                case "BLOCKED" -> {
+                    break;
+                case "BLOCKED":
                     log.warn("[VENDOR BLOCKED] {} ({}) — all new PO creation is blocked",
                             event.getVendorCode(), event.getLegalName());
                     notificationService.sendComplianceBlockedEmail(vendor);
-                }
-                case "REJECTED" -> {
+                    break;
+                case "REJECTED":
                     log.warn("[VENDOR REJECTED] {} ({}) — onboarding rejected",
                             event.getVendorCode(), event.getLegalName());
                     // Note: We'd ideally pass the rejection reason if it was in the event.
                     notificationService.sendVendorRejectedEmail(vendor, "Please log in to review the exact issue.");
-                }
-                default -> log.debug("[VENDOR KYC] {} → {}", event.getVendorCode(), event.getNewStatus());
+                    break;
+                default:
+                    log.debug("[VENDOR KYC] {} -> {}", event.getVendorCode(), event.getNewStatus());
+                    break;
             }
         }
 
         // ── Compliance Status Changes ─────────────────────────────────────────
         if ("COMPLIANCE".equals(event.getStatusType())) {
             switch (event.getNewStatus()) {
-                case "NON_COMPLIANT" -> {
+                case "NON_COMPLIANT":
                     log.warn("[COMPLIANCE ALERT] {} ({}) documents expired — vendor blocked",
                             event.getVendorCode(), event.getLegalName());
                     notificationService.sendComplianceBlockedEmail(vendor);
-                }
-                case "EXPIRING_SOON" -> {
+                    break;
+                case "EXPIRING_SOON":
                     log.info("[COMPLIANCE WARNING] {} ({}) — documents expiring within 30 days",
                             event.getVendorCode(), event.getLegalName());
                     notificationService.sendComplianceWarningEmail(vendor);
-                }
-                case "COMPLIANT" -> {
+                    break;
+                case "COMPLIANT":
                     log.info("[COMPLIANCE RESTORED] {} ({}) — all documents valid",
                             event.getVendorCode(), event.getLegalName());
                     // Optionally notify procurement that vendor is cleared
-                }
-                default -> log.debug("[COMPLIANCE] {} → {}", event.getVendorCode(), event.getNewStatus());
+                    break;
+                default:
+                    log.debug("[COMPLIANCE] {} -> {}", event.getVendorCode(), event.getNewStatus());
+                    break;
             }
         }
     }

@@ -683,19 +683,23 @@ public class BulkImportService {
         Cell cell = row.getCell(colIdx, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         if (cell == null) return "";
 
-        return switch (cell.getCellType()) {
-            case STRING  -> cell.getStringCellValue().trim();
-            case NUMERIC -> {
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue().trim();
+            case NUMERIC:
                 double val = cell.getNumericCellValue();
-                yield (val == Math.floor(val)) ? String.valueOf((long) val) : String.valueOf(val);
-            }
-            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
-            case FORMULA -> {
-                try { yield String.valueOf(cell.getNumericCellValue()); }
-                catch (Exception e) { yield cell.getStringCellValue().trim(); }
-            }
-            default -> "";
-        };
+                return (val == Math.floor(val)) ? String.valueOf((long) val) : String.valueOf(val);
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                try {
+                    return String.valueOf(cell.getNumericCellValue());
+                } catch (Exception e) {
+                    return cell.getStringCellValue().trim();
+                }
+            default:
+                return "";
+        }
     }
 
     /** Parse required BigDecimal — throws clear error if missing or not numeric */

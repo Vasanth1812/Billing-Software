@@ -50,6 +50,13 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"" + authException.getMessage() + "\"}");
+                })
+            )
             .authorizeHttpRequests(auth -> auth
 
                 // ── PUBLIC — no token needed ──────────────────────────────────
@@ -79,8 +86,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/categories/**").hasAnyRole("ADMIN", "MANAGER")
 
                 // Purchases: ADMIN and MANAGER only
-                .requestMatchers(HttpMethod.POST,   "/api/purchases/**").hasAnyRole("ADMIN", "MANAGER")
-                .requestMatchers(HttpMethod.PUT,    "/api/purchases/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.POST,   "/api/purchase-orders/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers(HttpMethod.PUT,    "/api/purchase-orders/**").hasAnyRole("ADMIN", "MANAGER")
 
                 // ── ALL ROLES (ADMIN + MANAGER + CASHIER) ────────────────────
                 // Cashier can process sales
@@ -90,7 +97,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/products/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
                 .requestMatchers(HttpMethod.GET, "/api/suppliers/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
-                .requestMatchers(HttpMethod.GET, "/api/purchases/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
+                .requestMatchers(HttpMethod.GET, "/api/purchase-orders/**").hasAnyRole("ADMIN", "MANAGER", "CASHIER")
 
                 // Procurement / GRN: ADMIN and MANAGER only
                 .requestMatchers("/api/grn/**").hasAnyRole("ADMIN", "MANAGER")

@@ -23,4 +23,5 @@ public class TransactionOverviewDTO {
     private BigDecimal amount;
     private String status;
     private LocalDateTime createdAt;
+    private Integer itemCount; // Number of unique SKUs/items in the transaction
 }

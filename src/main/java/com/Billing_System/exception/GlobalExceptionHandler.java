@@ -27,6 +27,7 @@ public class GlobalExceptionHandler {
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.put(error.getField(), error.getDefaultMessage());
         }
+        System.err.println("[BAD REQUEST] MethodArgumentNotValidException: " + fieldErrors);
         return buildResponse(HttpStatus.BAD_REQUEST, "Validation failed", fieldErrors);
     }
 
@@ -35,6 +36,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        System.err.println("[BAD REQUEST] IllegalArgumentException: " + ex.getMessage());
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), null);
     }
 
@@ -43,6 +45,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
+        System.err.println("[CONFLICT] IllegalStateException: " + ex.getMessage());
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), null);
     }
 
@@ -51,6 +54,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
+        System.err.println("[RESPONSE STATUS] " + ex.getStatusCode() + ": " + ex.getReason());
         return buildResponse(HttpStatus.valueOf(ex.getStatusCode().value()), ex.getReason(), null);
     }
 
@@ -61,6 +65,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleJsonErrors(
             org.springframework.http.converter.HttpMessageNotReadableException ex) {
         String message = "JSON parse error: " + ex.getMostSpecificCause().getMessage();
+        System.err.println("[BAD REQUEST] HttpMessageNotReadableException: " + message);
         return buildResponse(HttpStatus.BAD_REQUEST, message, null);
     }
 

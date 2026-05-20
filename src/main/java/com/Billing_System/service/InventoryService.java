@@ -169,6 +169,98 @@ public class InventoryService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    @Transactional
+    public BinLocationResponseDTO slotProductToBin(String identifier, BinSlotRequestDTO request) {
+        try {
+            log.info("Received slotProductToBin request. Identifier: {}, ProductId: {}, Qty: {}", 
+                     identifier, request.getProductId(), request.getQuantity());
+
+            BinLocation bin = null;
+            try {
+                UUID binId = UUID.fromString(identifier);
+                bin = binLocationRepository.findById(binId)
+                        .orElseGet(() -> binLocationRepository.findAll().stream()
+                                .filter(b -> b.getBinFullCode().equalsIgnoreCase(identifier) || b.getBinCode().equalsIgnoreCase(identifier))
+                                .findFirst()
+                                .orElse(null));
+            } catch (IllegalArgumentException e) {
+                bin = binLocationRepository.findAll().stream()
+                        .filter(b -> b.getBinFullCode().equalsIgnoreCase(identifier) || b.getBinCode().equalsIgnoreCase(identifier))
+                        .findFirst()
+                        .orElse(null);
+            }
+
+            if (bin == null) {
+                String zone = "Ambient";
+                String rack = "A";
+                Integer level = 1;
+                String binCode = identifier;
+                
+                try {
+                    String[] parts = identifier.split("-");
+                    if (parts.length >= 4) {
+                        rack = parts[0];
+                        String lvlStr = parts[2].replaceAll("[^0-9]", "");
+                        level = Integer.parseInt(lvlStr);
+                        binCode = parts[3];
+                    }
+                } catch (Exception ignored) {}
+
+                bin = BinLocation.builder()
+                        .binCode(binCode)
+                        .binFullCode(identifier)
+                        .zone(zone)
+                        .rack(rack)
+                        .levelNumber(level)
+                        .capacityUnits(BigDecimal.valueOf(100))
+                        .currentUnits(BigDecimal.ZERO)
+                        .velocityClass("LOW")
+                        .build();
+                bin = binLocationRepository.save(bin);
+                log.info("Auto-created missing BinLocation: {}", identifier);
+            }
+
+            if (request.getProductId() == null) {
+                throw new IllegalArgumentException("Product ID cannot be null");
+            }
+
+            Product product = productRepository.findById(request.getProductId())
+                    .orElseThrow(() -> new IllegalArgumentException("Product not found with ID: " + request.getProductId()));
+
+            BigDecimal incomingQty = request.getQuantity();
+            if (incomingQty == null) {
+                throw new IllegalArgumentException("Quantity cannot be null");
+            }
+            if (incomingQty.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Quantity cannot be negative");
+            }
+
+            // Validate capacity
+            BigDecimal newUnits;
+            if (bin.getCurrentProduct() != null && bin.getCurrentProduct().getId().equals(product.getId())) {
+                newUnits = bin.getCurrentUnits().add(incomingQty);
+            } else {
+                // Overwriting or initial slotting
+                newUnits = incomingQty;
+            }
+
+            if (newUnits.compareTo(bin.getCapacityUnits()) > 0) {
+                throw new IllegalArgumentException("Cannot slot product: exceeds capacity limit of " + bin.getCapacityUnits() + " units");
+            }
+
+            bin.setCurrentProduct(product);
+            bin.setCurrentUnits(newUnits);
+            bin = binLocationRepository.save(bin);
+
+            log.info("Successfully slotted product {} in bin {} (Total Units: {})", product.getName(), bin.getBinFullCode(), newUnits);
+            return mapToBinDTO(bin);
+        } catch (Exception e) {
+            System.err.println("[SLOTTING ERROR] Exception in slotProductToBin: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
     // --- Stock Transfer Order (STO) Management ---
 
     @Transactional
