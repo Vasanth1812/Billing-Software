@@ -89,6 +89,11 @@ public class FinanceService {
                 .submissionStatus(threeWayMatch ? "APPROVED" : "UNDER_REVIEW")
                 .build();
 
+        if (threeWayMatch) {
+            po.setStatus("invoiced");
+            poRepository.save(po);
+        }
+
         invoice = invoiceRepository.save(invoice);
         log.info("Vendor Invoice {} submitted. 3-Way Match: {}", invoice.getInvoiceNumber(), threeWayMatch);
 
@@ -137,6 +142,13 @@ public class FinanceService {
         invoice.setSubmissionStatus("APPROVED");
 
         invoice = invoiceRepository.save(invoice);
+        
+        PurchaseOrder po = invoice.getPurchaseOrder();
+        if (po != null) {
+            po.setStatus("invoiced");
+            poRepository.save(po);
+        }
+
         log.info("Vendor Invoice {} manually approved and matched.", invoice.getInvoiceNumber());
         return mapToInvoiceDTO(invoice);
     }
@@ -199,6 +211,12 @@ public class FinanceService {
         // Update the invoice status to PAID
         invoice.setSubmissionStatus("PAID");
         invoiceRepository.save(invoice);
+
+        PurchaseOrder po = invoice.getPurchaseOrder();
+        if (po != null) {
+            po.setStatus("paid");
+            poRepository.save(po);
+        }
 
         log.info("Processed Payment {} for Vendor {}. Gross: {}, Net: {}, Hold: {}", 
                 payment.getPaymentNumber(), vendor.getLegalName(), request.getPaymentAmount(), netPayment, holdAmount);

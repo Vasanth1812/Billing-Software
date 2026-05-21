@@ -17,12 +17,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @RestController
 @RequestMapping("/api/purchase-orders")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class PurchaseController {
+
+    private final JdbcTemplate jdbcTemplate;
 
     private final PurchaseService purchaseService;
     private final SalesService salesService;

@@ -17,7 +17,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 /**
@@ -74,7 +76,7 @@ public class VendorMasterBulkImportService {
     private static final int COL_WEBSITE       = 9;
     private static final int COL_NOTES         = 10;
 
-    // Product fields (11-21)
+    // Product fields (11-23)
     private static final int COL_PRODUCT_NAME   = 11;
     private static final int COL_VENDOR_SKU     = 12;
     private static final int COL_PURCHASE_PRICE = 13;
@@ -86,6 +88,8 @@ public class VendorMasterBulkImportService {
     private static final int COL_CATEGORY       = 19;
     private static final int COL_MIN_ORDER_QTY  = 20;
     private static final int COL_DESCRIPTION    = 21;
+    private static final int COL_BATCH_NUMBER   = 22;
+    private static final int COL_EXPIRY_DATE    = 23;
 
     public static final String[] TEMPLATE_HEADERS = {
             "Legal Name",
@@ -109,7 +113,9 @@ public class VendorMasterBulkImportService {
             "Brand",
             "Category",
             "Min Order Qty",
-            "Description"
+            "Description",
+            "batch_number",
+            "expiry_date"
     };
 
     private static final Set<String> VALID_BUSINESS_TYPES =
@@ -300,12 +306,16 @@ public class VendorMasterBulkImportService {
                         String priceStr  = getCellString(row, COL_PURCHASE_PRICE);
                         String unit      = getCellString(row, COL_UNIT);
                         String gstStr    = getCellString(row, COL_GST_RATE);
+                        String batchNumber = getCellString(row, COL_BATCH_NUMBER);
+                        String expiryDateStr = getCellString(row, COL_EXPIRY_DATE);
 
                         List<String> missingProd = new ArrayList<>();
                         if (vendorSku.isBlank())   missingProd.add("Vendor SKU");
                         if (priceStr.isBlank())    missingProd.add("Purchase Price");
                         if (unit.isBlank())        missingProd.add("Unit of Measure");
                         if (gstStr.isBlank())      missingProd.add("GST %");
+                        if (batchNumber.isBlank()) missingProd.add("batch_number");
+                        if (expiryDateStr.isBlank()) missingProd.add("expiry_date");
 
                         if (!missingProd.isEmpty()) {
                             errors.add("Row " + excelRow + ": Product missing required fields: " + String.join(", ", missingProd));
@@ -328,7 +338,15 @@ public class VendorMasterBulkImportService {
                                 errors.add("Row " + excelRow + ": Invalid GST rate '" + gstStr + "'");
                             }
 
-                            if (purchasePrice != null && gstRate != null) {
+                            LocalDate expiryDate = null;
+                            try {
+                                expiryDate = getCellLocalDate(row, COL_EXPIRY_DATE);
+                            } catch (DateTimeParseException e) {
+                                errors.add("Row " + excelRow + ": Invalid expiry_date '" + expiryDateStr
+                                        + "'. Use format yyyy-MM-dd");
+                            }
+
+                            if (purchasePrice != null && gstRate != null && expiryDate != null) {
                                 String packSize    = getCellString(row, COL_PACK_SIZE);
                                 String hsnCode     = getCellString(row, COL_HSN_CODE);
                                 String brand       = getCellString(row, COL_BRAND);
@@ -364,6 +382,8 @@ public class VendorMasterBulkImportService {
                                     product.setCategory(category.isBlank() ? null : category.trim());
                                     product.setMinOrderQty(minOrderQty);
                                     product.setDescription(description.isBlank() ? null : description.trim());
+                                    product.setBatchNumber(batchNumber.trim());
+                                    product.setExpiryDate(expiryDate);
                                     product.setUpdatedAt(LocalDateTime.now());
                                     product.setActive(true);
                                     productUpdatedCount++;
@@ -381,6 +401,8 @@ public class VendorMasterBulkImportService {
                                             .category(category.isBlank() ? null : category.trim())
                                             .minOrderQty(minOrderQty)
                                             .description(description.isBlank() ? null : description.trim())
+                                            .batchNumber(batchNumber.trim())
+                                            .expiryDate(expiryDate)
                                             .isActive(true)
                                             .build();
                                     productSuccessCount++;
@@ -481,7 +503,8 @@ public class VendorMasterBulkImportService {
                 "Amul Dairy Products Pvt Ltd", "Amul", "24AAAAA0000A1Z5", "AAAAA0000A",
                 "MANUFACTURER", "9876543210", "procurement@amul.com",
                 "REGULAR", "ABOVE_1CR", "www.amul.com", "Bulk import",
-                "Amul Full Cream Milk", "AMU-MILK-500", "22.00", "PCS", "500ml", "5", "0401", "Amul", "Dairy", "100", "Full cream milk tetra pack"
+                "Amul Full Cream Milk", "AMU-MILK-500", "22.00", "PCS", "500ml", "5", "0401", "Amul", "Dairy", "100", "Full cream milk tetra pack",
+                "MAY-2026", "2026-09-18"
             };
             for (int i = 0; i < sampleData1.length; i++) {
                 Cell c = sample1.createCell(i); c.setCellValue(sampleData1[i]); c.setCellStyle(ss);
@@ -493,7 +516,8 @@ public class VendorMasterBulkImportService {
                 "Amul Dairy Products Pvt Ltd", "Amul", "24AAAAA0000A1Z5", "AAAAA0000A",
                 "MANUFACTURER", "9876543210", "procurement@amul.com",
                 "REGULAR", "ABOVE_1CR", "www.amul.com", "Bulk import",
-                "Amul Salted Butter", "AMU-BUTTER-100", "56.00", "PCS", "100g", "12", "0405", "Amul", "Dairy", "50", "Salted table butter"
+                "Amul Salted Butter", "AMU-BUTTER-100", "56.00", "PCS", "100g", "12", "0405", "Amul", "Dairy", "50", "Salted table butter",
+                "MAY-2026", "2026-09-18"
             };
             for (int i = 0; i < sampleData2.length; i++) {
                 Cell c = sample2.createCell(i); c.setCellValue(sampleData2[i]); c.setCellStyle(ss);
@@ -505,7 +529,8 @@ public class VendorMasterBulkImportService {
                 "Britannia Industries Ltd", "Britannia", "24BBBBB1111B2Z6", "BBBBB1111B",
                 "DISTRIBUTOR", "9988776655", "sales@britannia.com",
                 "REGULAR", "ABOVE_1CR", "www.britannia.co.in", "Bulk onboarding",
-                "Britannia Marie Gold Biscuit", "BRI-MARIE-250", "30.00", "PCS", "250g", "18", "1905", "Britannia", "Biscuits", "200", "Tea time Marie Gold biscuits"
+                "Britannia Marie Gold Biscuit", "BRI-MARIE-250", "30.00", "PCS", "250g", "18", "1905", "Britannia", "Biscuits", "200", "Tea time Marie Gold biscuits",
+                "MAY-2026", "2026-09-18"
             };
             for (int i = 0; i < sampleData3.length; i++) {
                 Cell c = sample3.createCell(i); c.setCellValue(sampleData3[i]); c.setCellStyle(ss);
@@ -547,8 +572,19 @@ public class VendorMasterBulkImportService {
         }
     }
 
+    private LocalDate getCellLocalDate(Row row, int col) {
+        Cell cell = row.getCell(col, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (cell == null) {
+            throw new DateTimeParseException("Blank date", "", 0);
+        }
+        if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+            return cell.getLocalDateTimeCellValue().toLocalDate();
+        }
+        return LocalDate.parse(getCellString(row, col).trim());
+    }
+
     private boolean isRowEmpty(Row row) {
-        for (int i = COL_LEGAL_NAME; i <= COL_DESCRIPTION; i++) {
+        for (int i = COL_LEGAL_NAME; i <= COL_EXPIRY_DATE; i++) {
             Cell cell = row.getCell(i, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
             if (cell != null && cell.getCellType() != CellType.BLANK
                     && !getCellString(row, i).isBlank()) return false;
