@@ -77,10 +77,23 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(
             org.springframework.dao.DataIntegrityViolationException ex) {
         String message = "Database constraint violation";
-        if (ex.getMostSpecificCause().getMessage().contains("detail")) {
-            message += ": " + ex.getMostSpecificCause().getMessage().split("Detail:")[1];
+        String causeMessage = ex.getMostSpecificCause().getMessage();
+        if (causeMessage != null) {
+            if (causeMessage.toLowerCase().contains("detail:")) {
+                // Keep the whole message including detail for better debugging
+                message += ": " + causeMessage;
+            } else {
+                message += ": " + causeMessage;
+            }
         }
-        return buildResponse(HttpStatus.CONFLICT, message, null);
+        
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("message", message);
+        
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
     }
 
     /**
