@@ -61,7 +61,7 @@ public class VendorMasterBulkImportService {
 
     private static final int BATCH_SIZE    = 200;
     private static final int MAX_ROWS      = 2000;
-    private static final int DATA_START_ROW = 5; // 0-indexed: Row 6 in Excel = index 5
+    private static final int DATA_START_ROW = 2; // 0-indexed: Row 3 in Excel = index 2
 
     // Vendor fields (0-10)
     private static final int COL_LEGAL_NAME    = 0;
@@ -134,7 +134,7 @@ public class VendorMasterBulkImportService {
     private final UserRepository   userRepository;
 
     @Transactional
-    public VendorBulkImportResponseDTO importFromXlsx(MultipartFile file, UUID uploadedByUserId) {
+    public VendorBulkImportResponseDTO importFromXlsx(MultipartFile file, UUID uploadedByUserId, boolean updateExisting) {
         validateFile(file);
 
         User uploadedBy = (uploadedByUserId != null)
@@ -242,6 +242,11 @@ public class VendorMasterBulkImportService {
                     Vendor vendorObjToUse = gstinCache.get(gstin);
 
                     if (vendorObjToUse != null) {
+                        if (!updateExisting) {
+                            errors.add("Row " + excelRow + ": Vendor with GSTIN '" + gstin + "' already exists.");
+                            failedCount++;
+                            continue;
+                        }
                         // UPDATE existing vendor
                         vendorObjToUse.setLegalName(legalName.trim());
                         vendorObjToUse.setTradeName(tradeName.isBlank() ? null : tradeName.trim());
@@ -371,6 +376,11 @@ public class VendorMasterBulkImportService {
 
                                 VendorProduct product;
                                 if (existingProduct.isPresent()) {
+                                    if (!updateExisting) {
+                                        errors.add("Row " + excelRow + ": Product with Vendor SKU '" + vendorSku + "' already exists for this vendor.");
+                                        failedCount++;
+                                        continue;
+                                    }
                                     product = existingProduct.get();
                                     product.setProductName(productName.trim());
                                     product.setPurchasePrice(purchasePrice);

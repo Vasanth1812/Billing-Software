@@ -88,8 +88,9 @@ public class VendorController {
     @PostMapping(value = "/bulk-upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VendorBulkImportResponseDTO> masterBulkUpload(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "updateExisting", defaultValue = "true") boolean updateExisting,
             @RequestHeader(value = "X-User-Id", required = false) UUID userId) {
-        VendorBulkImportResponseDTO result = masterBulkImportService.importFromXlsx(file, userId);
+        VendorBulkImportResponseDTO result = masterBulkImportService.importFromXlsx(file, userId, updateExisting);
         HttpStatus status = "FAILED".equals(result.getStatus())
                 ? HttpStatus.UNPROCESSABLE_ENTITY : HttpStatus.OK;
         return ResponseEntity.status(status).body(result);
