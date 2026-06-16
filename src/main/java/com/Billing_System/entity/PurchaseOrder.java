@@ -61,6 +61,9 @@ public class PurchaseOrder {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "expected_delivery_date")
+    private LocalDate expectedDeliveryDate;
+
     @Builder.Default
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     @BatchSize(size = 25)

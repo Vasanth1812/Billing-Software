@@ -36,6 +36,13 @@ public class RtvService {
     }
 
     @Transactional(readOnly = true)
+    public List<RtvResponseDTO> getRtvRequestsByVendor(UUID vendorId) {
+        return rtvRequestRepository.findByVendorId(vendorId).stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public RtvResponseDTO getRtvById(UUID id) {
         RtvRequest rtv = rtvRequestRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("RTV Request not found"));
@@ -120,6 +127,19 @@ public class RtvService {
                 .createdById(rtv.getCreatedBy().getId())
                 .createdByName(rtv.getCreatedBy().getName())
                 .createdAt(rtv.getCreatedAt())
+                .returnedProducts(
+                        rtv.getGrn().getItems().stream()
+                                .filter(item -> item.getRejectedQuantity() != null && item.getRejectedQuantity().compareTo(BigDecimal.ZERO) > 0)
+                                .map(item -> com.Billing_System.dto.RtvProductDTO.builder()
+                                        .productId(item.getProduct() != null ? item.getProduct().getId() : null)
+                                        .productName(item.getProduct() != null ? item.getProduct().getName() : (item.getVendorProduct() != null ? item.getVendorProduct().getProductName() : "Unknown"))
+                                        .vendorSku(item.getVendorProduct() != null ? item.getVendorProduct().getVendorSku() : null)
+                                        .returnedQuantity(item.getRejectedQuantity())
+                                        .unitPrice(item.getUnitPrice())
+                                        .totalValue(item.getRejectedQuantity().multiply(item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO))
+                                        .build())
+                                .collect(Collectors.toList())
+                )
                 .build();
     }
 }

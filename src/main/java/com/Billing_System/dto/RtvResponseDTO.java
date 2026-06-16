@@ -31,4 +31,6 @@ public class RtvResponseDTO {
     private UUID createdById;
     private String createdByName;
     private LocalDateTime createdAt;
+    
+    private java.util.List<RtvProductDTO> returnedProducts;
 }

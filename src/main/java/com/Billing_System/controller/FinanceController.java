@@ -63,8 +63,13 @@ public class FinanceController {
     }
 
     /** Bug 2 Fix: GET single payment by ID — corrects fetchPaymentById() in vendorService.js */
-    @GetMapping("/payments/{id}")
+    @GetMapping("/payments/{id}") 
     public ResponseEntity<VendorPaymentResponseDTO> getPaymentById(@PathVariable UUID id) {
         return ResponseEntity.ok(financeService.getPaymentById(id));
+    }
+
+    @GetMapping("/payments/vendor/{vendorId}")
+    public ResponseEntity<List<VendorPaymentResponseDTO>> getPaymentsByVendor(@PathVariable UUID vendorId) {
+        return ResponseEntity.ok(financeService.getPaymentsByVendor(vendorId));
     }
 }

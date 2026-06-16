@@ -130,6 +130,13 @@ public class FinanceService {
         return mapToPaymentDTO(payment);
     }
 
+    @Transactional(readOnly = true)
+    public List<VendorPaymentResponseDTO> getPaymentsByVendor(UUID vendorId) {
+        return paymentRepository.findByVendorId(vendorId).stream()
+                .map(this::mapToPaymentDTO)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public VendorInvoiceResponseDTO approveInvoice(UUID invoiceId) {
         VendorInvoice invoice = invoiceRepository.findById(invoiceId)

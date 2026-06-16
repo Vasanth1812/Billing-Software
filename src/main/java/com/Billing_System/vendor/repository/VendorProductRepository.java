@@ -45,4 +45,7 @@ public interface VendorProductRepository extends JpaRepository<VendorProduct, UU
            "ORDER BY vp.productName ASC")
     List<VendorProduct> searchByVendor(@Param("vendorId") UUID vendorId,
                                         @Param("search") String search);
+
+    /** All expired products for a specific vendor */
+    List<VendorProduct> findByVendorIdAndExpiryDateBeforeAndIsActiveTrue(UUID vendorId, java.time.LocalDate date);
 }

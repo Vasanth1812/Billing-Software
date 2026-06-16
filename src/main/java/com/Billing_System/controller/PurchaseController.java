@@ -92,4 +92,18 @@ public class PurchaseController {
         PurchaseOrder updated = purchaseService.updateStatus(id, status);
         return ResponseEntity.ok(updated);
     }
+
+    /**
+     * PUT /api/purchase-orders/{id}/vendor-response
+     * Vendor responds to a PO (Accept/Decline) with an optional expected delivery date
+     */
+    @PutMapping("/{id}/vendor-response")
+    public ResponseEntity<PurchaseOrder> vendorResponse(
+            @PathVariable UUID id,
+            @RequestParam String status,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate deliveryDate) {
+        
+        PurchaseOrder updated = purchaseService.vendorRespondToPO(id, status, deliveryDate);
+        return ResponseEntity.ok(updated);
+    }
 }

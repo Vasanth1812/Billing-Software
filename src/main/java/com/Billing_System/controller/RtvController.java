@@ -23,6 +23,11 @@ public class RtvController {
         return ResponseEntity.ok(rtvService.getAllRtvRequests());
     }
 
+    @GetMapping("/vendor/{vendorId}")
+    public ResponseEntity<List<RtvResponseDTO>> getRtvByVendor(@PathVariable UUID vendorId) {
+        return ResponseEntity.ok(rtvService.getRtvRequestsByVendor(vendorId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<RtvResponseDTO> getRtvById(@PathVariable UUID id) {
         return ResponseEntity.ok(rtvService.getRtvById(id));

@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -101,6 +102,23 @@ public class VendorProductController {
                 List<VendorProduct> products = (search != null && !search.isBlank())
                                 ? productRepository.searchByVendor(vendorId, search.trim())
                                 : productRepository.findByVendorIdAndIsActiveTrueOrderByProductNameAsc(vendorId);
+
+                return ResponseEntity.ok(products.stream()
+                                .map(this::toDTO)
+                                .collect(Collectors.toList()));
+        }
+
+        /**
+         * GET /api/vendors/{vendorId}/products/expired
+         * List all expired products for a vendor.
+         */
+        @GetMapping("/api/vendors/{vendorId}/products/expired")
+        @Transactional(readOnly = true)
+        public ResponseEntity<List<VendorProductDTO>> getExpiredVendorProducts(
+                        @PathVariable UUID vendorId) {
+
+                List<VendorProduct> products = productRepository
+                                .findByVendorIdAndExpiryDateBeforeAndIsActiveTrue(vendorId, java.time.LocalDate.now());
 
                 return ResponseEntity.ok(products.stream()
                                 .map(this::toDTO)

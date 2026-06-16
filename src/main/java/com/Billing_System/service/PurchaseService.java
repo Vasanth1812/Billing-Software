@@ -354,4 +354,20 @@ public class PurchaseService {
         existing.setStatus(status);
         return purchaseOrderRepository.save(existing);
     }
+
+    public PurchaseOrder vendorRespondToPO(UUID id, String status, LocalDate deliveryDate) {
+        PurchaseOrder existing = purchaseOrderRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new IllegalArgumentException("Purchase order not found with ID: " + id));
+        
+        if ("ACTIVE".equalsIgnoreCase(status) || "ACCEPTED".equalsIgnoreCase(status)) {
+            existing.setStatus("ACTIVE");
+            existing.setExpectedDeliveryDate(deliveryDate);
+        } else if ("DECLINED_BY_VENDOR".equalsIgnoreCase(status)) {
+            existing.setStatus("DECLINED_BY_VENDOR");
+        } else {
+            throw new IllegalArgumentException("Invalid status for vendor response: " + status);
+        }
+        
+        return purchaseOrderRepository.save(existing);
+    }
 }
