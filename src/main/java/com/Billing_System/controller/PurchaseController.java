@@ -106,4 +106,14 @@ public class PurchaseController {
         PurchaseOrder updated = purchaseService.vendorRespondToPO(id, status, deliveryDate);
         return ResponseEntity.ok(updated);
     }
+
+    /**
+     * DELETE /api/purchase-orders/{id}
+     * Delete a purchase order
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePurchase(@PathVariable UUID id) {
+        purchaseService.deletePurchase(id);
+        return ResponseEntity.noContent().build();
+    }
 }

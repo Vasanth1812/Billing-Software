@@ -370,4 +370,11 @@ public class PurchaseService {
         
         return purchaseOrderRepository.save(existing);
     }
+
+    public void deletePurchase(UUID id) {
+        if (!purchaseOrderRepository.existsById(id)) {
+            throw new IllegalArgumentException("Purchase order not found with ID: " + id);
+        }
+        purchaseOrderRepository.deleteById(id);
+    }
 }
