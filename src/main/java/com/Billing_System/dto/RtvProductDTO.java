@@ -16,6 +16,7 @@ public class RtvProductDTO {
     private UUID productId;
     private String productName;
     private String vendorSku;
+    private String batchNumber;
     private BigDecimal returnedQuantity;
     private BigDecimal unitPrice;
     private BigDecimal totalValue;

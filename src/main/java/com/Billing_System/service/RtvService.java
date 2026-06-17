@@ -134,6 +134,7 @@ public class RtvService {
                                         .productId(item.getProduct() != null ? item.getProduct().getId() : null)
                                         .productName(item.getProduct() != null ? item.getProduct().getName() : (item.getVendorProduct() != null ? item.getVendorProduct().getProductName() : "Unknown"))
                                         .vendorSku(item.getVendorProduct() != null ? item.getVendorProduct().getVendorSku() : null)
+                                        .batchNumber(item.getVendorProduct() != null ? item.getVendorProduct().getBatchNumber() : null)
                                         .returnedQuantity(item.getRejectedQuantity())
                                         .unitPrice(item.getUnitPrice())
                                         .totalValue(item.getRejectedQuantity().multiply(item.getUnitPrice() != null ? item.getUnitPrice() : BigDecimal.ZERO))
