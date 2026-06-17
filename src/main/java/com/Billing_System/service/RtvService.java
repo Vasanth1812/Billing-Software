@@ -8,6 +8,9 @@ import com.Billing_System.entity.User;
 import com.Billing_System.repository.GRNRepository;
 import com.Billing_System.repository.RtvRequestRepository;
 import com.Billing_System.repository.UserRepository;
+import com.Billing_System.repository.ProductRepository;
+import com.Billing_System.vendor.repository.VendorProductRepository;
+import com.Billing_System.entity.RtvItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,8 @@ public class RtvService {
     private final RtvRequestRepository rtvRequestRepository;
     private final GRNRepository grnRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
+    private final VendorProductRepository vendorProductRepository;
 
     @Transactional(readOnly = true)
     public List<RtvResponseDTO> getAllRtvRequests() {
@@ -70,6 +75,33 @@ public class RtvService {
                 .totalReturnValue(dto.getTotalReturnValue() != null ? dto.getTotalReturnValue() : BigDecimal.ZERO)
                 .createdBy(user)
                 .build();
+
+        final RtvRequest finalRtv = rtv;
+        if (dto.getItems() != null && !dto.getItems().isEmpty()) {
+            List<RtvItem> items = dto.getItems().stream().map(itemDto -> {
+                com.Billing_System.entity.Product product = itemDto.getProductId() != null ? productRepository.findById(itemDto.getProductId()).orElse(null) : null;
+                com.Billing_System.vendor.entity.VendorProduct vendorProduct = itemDto.getVendorProductId() != null ? vendorProductRepository.findById(itemDto.getVendorProductId()).orElse(null) : null;
+                
+                BigDecimal totalVal = itemDto.getQuantity().multiply(itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO);
+                
+                return RtvItem.builder()
+                        .rtvRequest(finalRtv)
+                        .product(product)
+                        .vendorProduct(vendorProduct)
+                        .returnedQuantity(itemDto.getQuantity())
+                        .unitPrice(itemDto.getUnitPrice())
+                        .totalValue(totalVal)
+                        .reason(itemDto.getReason())
+                        .build();
+            }).collect(Collectors.toList());
+            rtv.setItems(items);
+            
+            // Auto-calculate total return value if not provided
+            if (dto.getTotalReturnValue() == null) {
+                BigDecimal total = items.stream().map(RtvItem::getTotalValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+                rtv.setTotalReturnValue(total);
+            }
+        }
 
         rtv = rtvRequestRepository.save(rtv);
         log.info("Return request {} initiated successfully for vendor {}", rtv.getRtvNumber(), grn.getVendor().getLegalName());
@@ -128,6 +160,20 @@ public class RtvService {
                 .createdByName(rtv.getCreatedBy().getName())
                 .createdAt(rtv.getCreatedAt())
                 .returnedProducts(
+                        rtv.getItems() != null && !rtv.getItems().isEmpty() ? 
+                        rtv.getItems().stream()
+                                .map(item -> com.Billing_System.dto.RtvProductDTO.builder()
+                                        .productId(item.getProduct() != null ? item.getProduct().getId() : null)
+                                        .productName(item.getProduct() != null ? item.getProduct().getName() : (item.getVendorProduct() != null ? item.getVendorProduct().getProductName() : "Unknown"))
+                                        .vendorSku(item.getVendorProduct() != null ? item.getVendorProduct().getVendorSku() : null)
+                                        .batchNumber(item.getVendorProduct() != null ? item.getVendorProduct().getBatchNumber() : null)
+                                        .returnedQuantity(item.getReturnedQuantity())
+                                        .unitPrice(item.getUnitPrice())
+                                        .totalValue(item.getTotalValue())
+                                        .build())
+                                .collect(Collectors.toList())
+                        : 
+                        // Fallback to legacy GRN rejected quantity mapping for backward compatibility with old RTVs
                         rtv.getGrn().getItems().stream()
                                 .filter(item -> item.getRejectedQuantity() != null && item.getRejectedQuantity().compareTo(BigDecimal.ZERO) > 0)
                                 .map(item -> com.Billing_System.dto.RtvProductDTO.builder()

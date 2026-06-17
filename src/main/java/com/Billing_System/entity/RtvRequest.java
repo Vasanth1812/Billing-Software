@@ -57,6 +57,11 @@ public class RtvRequest {
     @Column(name = "dispute_note", length = 500)
     private String disputeNote;
 
+    @OneToMany(mappedBy = "rtvRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    @Builder.Default
+    private java.util.List<RtvItem> items = new java.util.ArrayList<>();
+
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 

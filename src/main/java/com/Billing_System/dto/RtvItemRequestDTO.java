@@ -12,9 +12,10 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RtvRequestDTO {
-    private UUID grnId;
-    private BigDecimal totalReturnValue;
-    private String status;
-    private java.util.List<RtvItemRequestDTO> items;
+public class RtvItemRequestDTO {
+    private UUID productId;
+    private UUID vendorProductId;
+    private BigDecimal quantity;
+    private BigDecimal unitPrice;
+    private String reason;
 }
