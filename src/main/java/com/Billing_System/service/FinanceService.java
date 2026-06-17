@@ -84,7 +84,7 @@ public class FinanceService {
                 .irnNumber(request.getIrnNumber())
                 .poMatchStatus(poMatch)
                 .grnMatchStatus(grnMatch)
-                .invoiceMatchStatus("PENDING") // Will be updated by Finance team
+                .invoiceMatchStatus(threeWayMatch ? "MATCHED" : "PENDING")
                 .threeWayMatch(threeWayMatch)
                 .submissionStatus(threeWayMatch ? "APPROVED" : "UNDER_REVIEW")
                 .build();
