@@ -79,15 +79,35 @@ public class RtvService {
         final RtvRequest finalRtv = rtv;
         if (dto.getReturnedProducts() != null && !dto.getReturnedProducts().isEmpty()) {
             List<RtvItem> items = dto.getReturnedProducts().stream().map(itemDto -> {
-                com.Billing_System.entity.Product product = itemDto.getProductId() != null 
-                    ? productRepository.findById(itemDto.getProductId()).orElse(null) 
-                    : (itemDto.getProductSku() != null ? productRepository.findBySku(itemDto.getProductSku()).orElse(null) : null);
+                com.Billing_System.entity.Product product = null;
+                com.Billing_System.vendor.entity.VendorProduct vendorProduct = null;
+                
+                // First try to find from GRN items
+                for (com.Billing_System.entity.GRNItem gItem : grn.getItems()) {
+                    boolean matchByVendorSku = itemDto.getVendorProductSku() != null && gItem.getVendorProduct() != null && itemDto.getVendorProductSku().equals(gItem.getVendorProduct().getVendorSku());
+                    boolean matchByProductSku = itemDto.getProductSku() != null && gItem.getProduct() != null && itemDto.getProductSku().equals(gItem.getProduct().getSku());
+                    boolean matchByName = itemDto.getProductName() != null && gItem.getProduct() != null && itemDto.getProductName().equals(gItem.getProduct().getName());
                     
-                com.Billing_System.vendor.entity.VendorProduct vendorProduct = itemDto.getVendorProductId() != null 
-                    ? vendorProductRepository.findById(itemDto.getVendorProductId()).orElse(null) 
-                    : (itemDto.getVendorProductSku() != null && grn.getVendor() != null 
-                        ? vendorProductRepository.findByVendorIdAndVendorSku(grn.getVendor().getId(), itemDto.getVendorProductSku()).orElse(null) 
-                        : null);
+                    if (matchByVendorSku || matchByProductSku || matchByName) {
+                        product = gItem.getProduct();
+                        vendorProduct = gItem.getVendorProduct();
+                        break;
+                    }
+                }
+                
+                // Fallback
+                if (product == null) {
+                    product = itemDto.getProductId() != null ? productRepository.findById(itemDto.getProductId()).orElse(null) 
+                            : (itemDto.getProductSku() != null ? productRepository.findBySku(itemDto.getProductSku()).orElse(null) : null);
+                }
+                if (vendorProduct == null) {
+                    vendorProduct = itemDto.getVendorProductId() != null ? vendorProductRepository.findById(itemDto.getVendorProductId()).orElse(null) 
+                            : (itemDto.getVendorProductSku() != null && grn.getVendor() != null ? vendorProductRepository.findByVendorIdAndVendorSku(grn.getVendor().getId(), itemDto.getVendorProductSku()).orElse(null) : null);
+                }
+                
+                if (product == null) {
+                    throw new IllegalArgumentException("Could not resolve Product for SKU: " + itemDto.getProductSku() + " / Name: " + itemDto.getProductName());
+                }
                 
                 BigDecimal qty = itemDto.getReturnQuantity() != null ? itemDto.getReturnQuantity() : (itemDto.getQuantity() != null ? itemDto.getQuantity() : BigDecimal.ZERO);
                 BigDecimal totalVal = qty.multiply(itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO);
