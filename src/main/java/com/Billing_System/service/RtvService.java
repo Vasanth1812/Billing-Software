@@ -113,6 +113,14 @@ public class RtvService {
                 BigDecimal totalVal = qty.multiply(itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO);
                 String reason = itemDto.getReturnReason() != null ? itemDto.getReturnReason() : itemDto.getReason();
                 
+                // Immediately deduct stock so we don't accidentally sell defective/returned items
+                if (product != null && qty.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+                    product.setCurrentStock(currentStock.subtract(qty));
+                    productRepository.save(product);
+                    log.info("Deducted {} stock from Product {} due to RTV creation", qty, product.getSku());
+                }
+                
                 return RtvItem.builder()
                         .rtvRequest(finalRtv)
                         .product(product)

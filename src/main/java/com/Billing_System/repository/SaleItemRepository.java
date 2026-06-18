@@ -21,4 +21,7 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, UUID> {
 
     @Query("SELECT si FROM SaleItem si JOIN FETCH si.product WHERE si.product.id = :productId")
     List<SaleItem> findByProductId(@Param("productId") UUID productId);
+
+    @Query("SELECT si FROM SaleItem si JOIN FETCH si.product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.primarySupplier WHERE si.salesInvoice.invoiceDate BETWEEN :startDate AND :endDate")
+    List<SaleItem> findBySalesInvoiceInvoiceDateBetween(@Param("startDate") java.time.LocalDate startDate, @Param("endDate") java.time.LocalDate endDate);
 }

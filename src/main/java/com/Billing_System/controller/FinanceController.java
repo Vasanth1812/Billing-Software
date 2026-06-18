@@ -62,6 +62,14 @@ public class FinanceController {
         return ResponseEntity.ok(financeService.getAllVendorPayments());
     }
 
+    // ─── GST Reconciliation ──────────────────────────────────────────────────
+
+    @GetMapping("/gst-reconciliation/sales")
+    public ResponseEntity<List<com.Billing_System.dto.SalesGstReportDTO>> getSalesGstReport(
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
+        return ResponseEntity.ok(financeService.getSalesGstReport(startDate, endDate));
+    }
     /** Bug 2 Fix: GET single payment by ID — corrects fetchPaymentById() in vendorService.js */
     @GetMapping("/payments/{id}") 
     public ResponseEntity<VendorPaymentResponseDTO> getPaymentById(@PathVariable UUID id) {

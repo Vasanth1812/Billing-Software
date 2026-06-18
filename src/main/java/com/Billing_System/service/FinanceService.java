@@ -30,6 +30,7 @@ public class FinanceService {
     private final GRNRepository grnRepository;
     private final ShortageReportRepository shortageReportRepository;
     private final VendorBankAccountRepository bankAccountRepository;
+    private final SaleItemRepository saleItemRepository;
 
     @Transactional
     public VendorInvoiceResponseDTO submitInvoice(VendorInvoiceRequestDTO request) {
@@ -229,6 +230,43 @@ public class FinanceService {
                 payment.getPaymentNumber(), vendor.getLegalName(), request.getPaymentAmount(), netPayment, holdAmount);
 
         return mapToPaymentDTO(payment);
+    }
+
+    public List<SalesGstReportDTO> getSalesGstReport(java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        if (startDate == null) startDate = java.time.LocalDate.now().minusMonths(1).withDayOfMonth(1);
+        if (endDate == null) endDate = java.time.LocalDate.now();
+        
+        List<SaleItem> saleItems = saleItemRepository.findBySalesInvoiceInvoiceDateBetween(startDate, endDate);
+        
+        java.util.Map<String, SalesGstReportDTO> grouped = new java.util.HashMap<>();
+        
+        for (SaleItem item : saleItems) {
+            Product product = item.getProduct();
+            if (product == null) continue;
+            
+            String productName = product.getName() != null ? product.getName() : "Unknown Product";
+            String categoryName = (product.getCategory() != null && product.getCategory().getName() != null) ? product.getCategory().getName() : "Uncategorized";
+            String vendorName = (product.getPrimarySupplier() != null && product.getPrimarySupplier().getName() != null) ? product.getPrimarySupplier().getName() : "Unknown Vendor";
+            
+            String key = productName + "|" + categoryName + "|" + vendorName;
+            
+            SalesGstReportDTO dto = grouped.getOrDefault(key, SalesGstReportDTO.builder()
+                .productName(productName)
+                .categoryName(categoryName)
+                .vendorName(vendorName)
+                .totalQuantitySold(BigDecimal.ZERO)
+                .totalSalesValue(BigDecimal.ZERO)
+                .totalGstCollected(BigDecimal.ZERO)
+                .build());
+                
+            dto.setTotalQuantitySold(dto.getTotalQuantitySold().add(item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO));
+            dto.setTotalSalesValue(dto.getTotalSalesValue().add(item.getNetAmount() != null ? item.getNetAmount() : BigDecimal.ZERO));
+            dto.setTotalGstCollected(dto.getTotalGstCollected().add(item.getGstAmount() != null ? item.getGstAmount() : BigDecimal.ZERO));
+            
+            grouped.put(key, dto);
+        }
+        
+        return new java.util.ArrayList<>(grouped.values());
     }
 
     private VendorInvoiceResponseDTO mapToInvoiceDTO(VendorInvoice invoice) {

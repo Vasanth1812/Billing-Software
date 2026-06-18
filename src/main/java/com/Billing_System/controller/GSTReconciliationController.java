@@ -1,6 +1,8 @@
 package com.Billing_System.controller;
 
 import com.Billing_System.dto.GSTReconciliationDTO;
+import com.Billing_System.dto.InputTaxLineDTO;
+import com.Billing_System.dto.OutputTaxLineDTO;
 import com.Billing_System.service.GSTReconciliationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,16 @@ public class GSTReconciliationController {
     @GetMapping
     public ResponseEntity<List<GSTReconciliationDTO>> getReconciliationData(@RequestParam(required = false, defaultValue = "2026-04") String period) {
         return ResponseEntity.ok(gstReconciliationService.getReconciliationData(period));
+    }
+
+    @GetMapping("/input-tax")
+    public ResponseEntity<List<InputTaxLineDTO>> getInputTaxData(@RequestParam(required = false) String period) {
+        return ResponseEntity.ok(gstReconciliationService.getInputTaxLedger(period));
+    }
+
+    @GetMapping("/output-tax")
+    public ResponseEntity<List<OutputTaxLineDTO>> getOutputTaxData(@RequestParam(required = false) String period) {
+        return ResponseEntity.ok(gstReconciliationService.getOutputTaxLedger(period));
     }
 
     @PostMapping("/notify")
@@ -44,3 +56,4 @@ public class GSTReconciliationController {
         return ResponseEntity.ok().build();
     }
 }
+
