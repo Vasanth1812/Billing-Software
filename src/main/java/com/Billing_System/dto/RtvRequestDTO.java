@@ -16,5 +16,5 @@ public class RtvRequestDTO {
     private UUID grnId;
     private BigDecimal totalReturnValue;
     private String status;
-    private java.util.List<RtvItemRequestDTO> items;
+    private java.util.List<RtvItemRequestDTO> returnedProducts;
 }

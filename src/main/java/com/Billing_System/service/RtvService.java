@@ -77,21 +77,30 @@ public class RtvService {
                 .build();
 
         final RtvRequest finalRtv = rtv;
-        if (dto.getItems() != null && !dto.getItems().isEmpty()) {
-            List<RtvItem> items = dto.getItems().stream().map(itemDto -> {
-                com.Billing_System.entity.Product product = itemDto.getProductId() != null ? productRepository.findById(itemDto.getProductId()).orElse(null) : null;
-                com.Billing_System.vendor.entity.VendorProduct vendorProduct = itemDto.getVendorProductId() != null ? vendorProductRepository.findById(itemDto.getVendorProductId()).orElse(null) : null;
+        if (dto.getReturnedProducts() != null && !dto.getReturnedProducts().isEmpty()) {
+            List<RtvItem> items = dto.getReturnedProducts().stream().map(itemDto -> {
+                com.Billing_System.entity.Product product = itemDto.getProductId() != null 
+                    ? productRepository.findById(itemDto.getProductId()).orElse(null) 
+                    : (itemDto.getProductSku() != null ? productRepository.findBySku(itemDto.getProductSku()).orElse(null) : null);
+                    
+                com.Billing_System.vendor.entity.VendorProduct vendorProduct = itemDto.getVendorProductId() != null 
+                    ? vendorProductRepository.findById(itemDto.getVendorProductId()).orElse(null) 
+                    : (itemDto.getVendorProductSku() != null && grn.getVendor() != null 
+                        ? vendorProductRepository.findByVendorIdAndVendorSku(grn.getVendor().getId(), itemDto.getVendorProductSku()).orElse(null) 
+                        : null);
                 
-                BigDecimal totalVal = itemDto.getQuantity().multiply(itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO);
+                BigDecimal qty = itemDto.getReturnQuantity() != null ? itemDto.getReturnQuantity() : (itemDto.getQuantity() != null ? itemDto.getQuantity() : BigDecimal.ZERO);
+                BigDecimal totalVal = qty.multiply(itemDto.getUnitPrice() != null ? itemDto.getUnitPrice() : BigDecimal.ZERO);
+                String reason = itemDto.getReturnReason() != null ? itemDto.getReturnReason() : itemDto.getReason();
                 
                 return RtvItem.builder()
                         .rtvRequest(finalRtv)
                         .product(product)
                         .vendorProduct(vendorProduct)
-                        .returnedQuantity(itemDto.getQuantity())
+                        .returnedQuantity(qty)
                         .unitPrice(itemDto.getUnitPrice())
                         .totalValue(totalVal)
-                        .reason(itemDto.getReason())
+                        .reason(reason)
                         .build();
             }).collect(Collectors.toList());
             rtv.setItems(items);

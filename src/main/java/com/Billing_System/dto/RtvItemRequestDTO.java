@@ -15,7 +15,12 @@ import java.util.UUID;
 public class RtvItemRequestDTO {
     private UUID productId;
     private UUID vendorProductId;
+    private String productName;
+    private String productSku;
+    private String vendorProductSku;
     private BigDecimal quantity;
+    private BigDecimal returnQuantity;
     private BigDecimal unitPrice;
     private String reason;
+    private String returnReason;
 }
