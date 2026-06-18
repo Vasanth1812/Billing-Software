@@ -18,9 +18,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class InputTaxLineDTO {
-    private UUID orderId;          // PurchaseOrder ID
+    private UUID orderId;          // PurchaseOrder ID or GRN ID
     private String vendorName;     // Vendor legal name
-    private String batchNumber;    // GRN number (batch identifier) — may be null if no GRN yet
+    private String grnNumber;      // The actual GRN number
+    private String batchNumber;    // The actual batch number (from VendorProduct)
     private String poNumber;       // PurchaseOrder invoiceNumber
     private LocalDate orderDate;   // PurchaseOrder invoiceDate
     private String productName;    // PurchaseItem productName

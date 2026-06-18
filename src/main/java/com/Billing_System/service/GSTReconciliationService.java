@@ -10,6 +10,8 @@ import com.Billing_System.repository.PurchaseOrderRepository;
 import com.Billing_System.repository.SalesInvoiceRepository;
 import com.Billing_System.repository.VendorInvoiceRepository;
 import com.Billing_System.vendor.entity.Vendor;
+import com.Billing_System.vendor.entity.VendorProduct;
+import com.Billing_System.vendor.repository.VendorProductRepository;
 import com.Billing_System.vendor.repository.VendorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ public class GSTReconciliationService {
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final SalesInvoiceRepository salesInvoiceRepository;
     private final GRNRepository grnRepository;
+    private final VendorProductRepository vendorProductRepository;
 
     @Transactional(readOnly = true)
     public List<GSTReconciliationDTO> getReconciliationData(String period) {
@@ -218,46 +221,68 @@ public class GSTReconciliationService {
     public List<InputTaxLineDTO> getInputTaxLedger(String period) {
         log.info("Fetching input tax ledger for period: {}", period);
         LocalDate[] range = parsePeriodToRange(period);
+        java.time.LocalDateTime start = range[0].atStartOfDay();
+        java.time.LocalDateTime end = range[1].plusDays(1).atStartOfDay();
 
-        List<PurchaseOrder> purchaseOrders = purchaseOrderRepository.findByDateRange(range[0], range[1]);
+        List<GRN> grns = grnRepository.findByReceivedDateBetween(start, end);
 
-        // Pre-load GRN lookup: PO ID → GRN number (batch identifier)
-        Map<UUID, String> poToGrnNumber = new HashMap<>();
-        for (PurchaseOrder po : purchaseOrders) {
-            List<GRN> grns = grnRepository.findByPurchaseOrderId(po.getId());
-            if (!grns.isEmpty()) {
-                poToGrnNumber.put(po.getId(), grns.get(0).getGrnNumber());
+        // Collect VendorProduct IDs to fetch actual batch numbers
+        Set<UUID> vendorProductIds = new HashSet<>();
+        
+        for (GRN grn : grns) {
+            for (GRNItem item : grn.getItems()) {
+                if (item.getVendorProduct() != null) {
+                    vendorProductIds.add(item.getVendorProduct().getId());
+                } else if (item.getPurchaseItem() != null && item.getPurchaseItem().getVendorProductId() != null) {
+                    vendorProductIds.add(item.getPurchaseItem().getVendorProductId());
+                }
             }
+        }
+
+        // Fetch actual batch numbers from VendorProducts
+        Map<UUID, VendorProduct> vendorProductMap = new HashMap<>();
+        if (!vendorProductIds.isEmpty()) {
+            vendorProductRepository.findAllById(vendorProductIds).forEach(vp -> {
+                vendorProductMap.put(vp.getId(), vp);
+            });
         }
 
         List<InputTaxLineDTO> result = new ArrayList<>();
 
-        for (PurchaseOrder po : purchaseOrders) {
+        for (GRN grn : grns) {
             String vendorName = "Unknown Vendor";
-            if (po.getVendor() != null) {
-                vendorName = po.getVendor().getLegalName() != null
-                        ? po.getVendor().getLegalName()
-                        : "Vendor #" + po.getVendor().getId();
+            if (grn.getVendor() != null) {
+                vendorName = grn.getVendor().getLegalName() != null ? grn.getVendor().getLegalName() : "Vendor #" + grn.getVendor().getId();
+            } else if (grn.getPurchaseOrder() != null && grn.getPurchaseOrder().getVendor() != null) {
+                vendorName = grn.getPurchaseOrder().getVendor().getLegalName() != null ? grn.getPurchaseOrder().getVendor().getLegalName() : "Vendor #" + grn.getPurchaseOrder().getVendor().getId();
             }
 
-            String grnNumber = poToGrnNumber.getOrDefault(po.getId(), null);
-
-            for (PurchaseItem item : po.getItems()) {
-                BigDecimal qty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
-                BigDecimal rate = item.getPurchaseRate() != null ? item.getPurchaseRate() : BigDecimal.ZERO;
+            for (GRNItem item : grn.getItems()) {
+                BigDecimal qty = item.getAcceptedQuantity() != null ? item.getAcceptedQuantity() : BigDecimal.ZERO;
+                BigDecimal rate = item.getUnitPrice() != null ? item.getUnitPrice() : (item.getPurchaseItem() != null && item.getPurchaseItem().getPurchaseRate() != null ? item.getPurchaseItem().getPurchaseRate() : BigDecimal.ZERO);
                 BigDecimal taxable = qty.multiply(rate).setScale(2, RoundingMode.HALF_UP);
-                BigDecimal gstRate = item.getGstRate() != null ? item.getGstRate() : BigDecimal.ZERO;
-                BigDecimal gstAmount = item.getGstAmount() != null
-                        ? item.getGstAmount()
-                        : taxable.multiply(gstRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                
+                BigDecimal gstRate = (item.getPurchaseItem() != null && item.getPurchaseItem().getGstRate() != null) ? item.getPurchaseItem().getGstRate() : BigDecimal.ZERO;
+                BigDecimal gstAmount = taxable.multiply(gstRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+                // Prefer actual batchNumber from VendorProduct
+                String actualBatchNumber = null;
+                UUID vpId = item.getVendorProduct() != null ? item.getVendorProduct().getId() : (item.getPurchaseItem() != null ? item.getPurchaseItem().getVendorProductId() : null);
+                if (vpId != null && vendorProductMap.containsKey(vpId)) {
+                    String vpBatch = vendorProductMap.get(vpId).getBatchNumber();
+                    if (vpBatch != null && !vpBatch.trim().isEmpty()) {
+                        actualBatchNumber = vpBatch;
+                    }
+                }
 
                 result.add(InputTaxLineDTO.builder()
-                        .orderId(po.getId())
+                        .orderId(grn.getId())
                         .vendorName(vendorName)
-                        .batchNumber(grnNumber)
-                        .poNumber(po.getInvoiceNumber())
-                        .orderDate(po.getInvoiceDate())
-                        .productName(item.getProductName() != null ? item.getProductName() : "—")
+                        .grnNumber(grn.getGrnNumber())
+                        .batchNumber(actualBatchNumber)
+                        .poNumber(grn.getPurchaseOrder() != null ? grn.getPurchaseOrder().getInvoiceNumber() : "—")
+                        .orderDate(grn.getReceivedDate() != null ? grn.getReceivedDate().toLocalDate() : null)
+                        .productName(item.getProduct() != null ? item.getProduct().getName() : (item.getPurchaseItem() != null ? item.getPurchaseItem().getProductName() : "—"))
                         .taxableAmount(taxable)
                         .gstRate(gstRate)
                         .gstAmount(gstAmount)

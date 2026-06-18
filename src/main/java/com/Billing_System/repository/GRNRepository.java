@@ -18,4 +18,6 @@ public interface GRNRepository extends JpaRepository<GRN, UUID> {
     List<GRN> findByVendorId(UUID vendorId);
 
     List<GRN> findByStatus(String status);
+
+    List<GRN> findByReceivedDateBetween(java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
 }
