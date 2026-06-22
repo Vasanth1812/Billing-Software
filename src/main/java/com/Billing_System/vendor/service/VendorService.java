@@ -38,6 +38,7 @@ public class VendorService {
     private final UserRepository              userRepository;
     private final PurchaseOrderRepository     purchaseOrderRepository;
     private final VendorProductRepository     vendorProductRepository;
+    private final VendorDisputeRepository     vendorDisputeRepository;
     private final ApplicationEventPublisher   eventPublisher;
 
     // ─── Vendor CRUD ────────────────────────────────────────────────────────────
@@ -511,6 +512,34 @@ public class VendorService {
     public void deleteDocument(UUID documentId) {
         VendorDocument doc = getDocumentEntity(documentId);
         documentRepository.delete(doc);
+    }
+
+    // ─── Disputes ────────────────────────────────────────────────────────────────
+    
+    @Transactional
+    public com.Billing_System.dto.VendorDisputeResponseDTO raiseDispute(UUID vendorId, com.Billing_System.dto.VendorDisputeRequestDTO dto) {
+        Vendor vendor = getVendorEntity(vendorId);
+        
+        com.Billing_System.vendor.entity.VendorDispute dispute = com.Billing_System.vendor.entity.VendorDispute.builder()
+                .vendor(vendor)
+                .relatedInstrument(dto.getRelatedInstrument())
+                .category(dto.getCategory())
+                .narrative(dto.getNarrative())
+                .status("OPEN")
+                .build();
+                
+        dispute = vendorDisputeRepository.save(dispute);
+        
+        return com.Billing_System.dto.VendorDisputeResponseDTO.builder()
+                .id(dispute.getId())
+                .vendorId(vendor.getId())
+                .vendorName(vendor.getLegalName())
+                .relatedInstrument(dispute.getRelatedInstrument())
+                .category(dispute.getCategory())
+                .narrative(dispute.getNarrative())
+                .status(dispute.getStatus())
+                .createdAt(dispute.getCreatedAt())
+                .build();
     }
 
     // ─── Vendor Products (Catalog) ───────────────────────────────────────────────

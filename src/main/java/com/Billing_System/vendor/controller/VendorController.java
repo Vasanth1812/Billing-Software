@@ -96,7 +96,7 @@ public class VendorController {
         return ResponseEntity.status(status).body(result);
     }
 
-    // ─── Vendor CRUD ─────────────────────────────────────────────────────────
+    // ─── Internal Systems ────────────────────────────────────────────────────────
 
     @GetMapping
     public ResponseEntity<List<VendorResponseDTO>> getAllVendors(
@@ -272,5 +272,14 @@ public class VendorController {
     @PostMapping("/compliance/scan")
     public ResponseEntity<ComplianceSchedulerService.ComplianceScanResultDTO> triggerComplianceScan() {
         return ResponseEntity.ok(complianceScheduler.runManualScan());
+    }
+
+    // ─── Disputes ────────────────────────────────────────────────────────────────
+    
+    @PostMapping("/{id}/disputes")
+    public ResponseEntity<com.Billing_System.dto.VendorDisputeResponseDTO> raiseDispute(
+            @PathVariable UUID id,
+            @Valid @RequestBody com.Billing_System.dto.VendorDisputeRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(vendorService.raiseDispute(id, dto));
     }
 }

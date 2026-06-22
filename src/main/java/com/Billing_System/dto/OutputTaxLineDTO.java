@@ -21,11 +21,11 @@ public class OutputTaxLineDTO {
     private UUID saleId;            // SalesInvoice ID
     private String invoiceNumber;   // SalesInvoice invoiceNumber (e.g. INV-0042)
     private String category;        // Primary product category name
+    private String vendorName;      // Derived from primary supplier of sold product
+    private String batchNumber;     // Batch number of the product sold (if tracked)
     private String customerName;    // SalesInvoice customerName
     private LocalDate saleDate;     // SalesInvoice invoiceDate
     private BigDecimal taxableAmount; // SalesInvoice subtotal (before GST)
-    private BigDecimal cgstAmount;  // SalesInvoice cgstAmount
-    private BigDecimal sgstAmount;  // SalesInvoice sgstAmount
     private BigDecimal totalGstAmount; // cgst + sgst
     private BigDecimal grandTotal;  // SalesInvoice grandTotal
     private String paymentMode;     // SalesInvoice paymentMode

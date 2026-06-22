@@ -305,12 +305,31 @@ public class GSTReconciliationService {
         List<OutputTaxLineDTO> result = new ArrayList<>();
 
         for (SalesInvoice sale : sales) {
-            // Derive primary category from the first item's product
             String category = "General";
+            String vendorName = "Multiple / Unknown";
+            String batchNumber = null;
+
             if (sale.getItems() != null && !sale.getItems().isEmpty()) {
                 SaleItem firstItem = sale.getItems().get(0);
-                if (firstItem.getProduct() != null && firstItem.getProduct().getCategory() != null) {
-                    category = firstItem.getProduct().getCategory().getName();
+                if (firstItem.getProduct() != null) {
+                    if (firstItem.getProduct().getCategory() != null) {
+                        category = firstItem.getProduct().getCategory().getName();
+                    }
+                    
+                    // Fetch VendorProduct mapped to this store product to get true vendor and batch
+                    List<VendorProduct> mappedVendorProducts = vendorProductRepository.findByMappedProductId(firstItem.getProduct().getId());
+                    if (!mappedVendorProducts.isEmpty()) {
+                        VendorProduct vp = mappedVendorProducts.get(0);
+                        if (vp.getVendor() != null && vp.getVendor().getLegalName() != null) {
+                            vendorName = vp.getVendor().getLegalName();
+                        }
+                        if (vp.getBatchNumber() != null && !vp.getBatchNumber().trim().isEmpty()) {
+                            batchNumber = vp.getBatchNumber();
+                        }
+                    } else if (firstItem.getProduct().getPrimarySupplier() != null) {
+                        // Fallback to primary supplier if no direct VendorProduct map exists
+                        vendorName = firstItem.getProduct().getPrimarySupplier().getName();
+                    }
                 }
             }
 
@@ -322,11 +341,11 @@ public class GSTReconciliationService {
                     .saleId(sale.getId())
                     .invoiceNumber(sale.getInvoiceNumber())
                     .category(category)
+                    .vendorName(vendorName)
+                    .batchNumber(batchNumber)
                     .customerName(sale.getCustomerName() != null ? sale.getCustomerName() : "Walk-in Customer")
                     .saleDate(sale.getInvoiceDate())
                     .taxableAmount(sale.getSubtotal() != null ? sale.getSubtotal() : BigDecimal.ZERO)
-                    .cgstAmount(cgst)
-                    .sgstAmount(sgst)
                     .totalGstAmount(totalGst)
                     .grandTotal(sale.getGrandTotal() != null ? sale.getGrandTotal() : BigDecimal.ZERO)
                     .paymentMode(sale.getPaymentMode())
