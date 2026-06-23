@@ -31,6 +31,8 @@ public class PurchaseRequestDTO {
     @Valid
     private List<PurchaseItemDTO> items;
 
+    private String outletId;
+
     @Data
     public static class PurchaseItemDTO {
 

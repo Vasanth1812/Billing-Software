@@ -25,6 +25,55 @@ public class InventoryService {
     private final StockTransferOrderRepository stoRepository;
     private final UserRepository userRepository;
     private final BlockchainAuditService auditService;
+    private final OutletStockRepository outletStockRepository;
+
+    @Transactional(readOnly = true)
+    public List<GlobalInventorySearchDTO> searchGlobalInventory(String query) {
+        List<Product> products = productRepository.searchByNameOrSku(query);
+        return products.stream().map(product -> {
+            List<OutletStock> outletStocks = outletStockRepository.findByProductId(product.getId());
+            
+            List<GlobalInventorySearchDTO.OutletStockDetail> details = outletStocks.stream().map(os -> {
+                String status = "Normal";
+                if (os.getCurrentStock().compareTo(os.getMinStock()) <= 0) {
+                    status = "Critical";
+                } else if (os.getCurrentStock().compareTo(os.getMinStock().multiply(BigDecimal.valueOf(3))) > 0) {
+                    status = "Excess";
+                }
+                
+                String outletName = os.getOutletId();
+                if ("O1".equals(os.getOutletId())) outletName = "Main Branch — Andheri";
+                if ("O2".equals(os.getOutletId())) outletName = "Bandra West Outlet";
+                if ("O3".equals(os.getOutletId())) outletName = "Powai Branch";
+                if ("O4".equals(os.getOutletId())) outletName = "Thane Branch";
+                if ("HQ".equals(os.getOutletId())) outletName = "HQ (Central Warehouse)";
+
+                return GlobalInventorySearchDTO.OutletStockDetail.builder()
+                        .outletId(os.getOutletId())
+                        .outletName(outletName)
+                        .stock(os.getCurrentStock())
+                        .status(status)
+                        .build();
+            }).collect(java.util.stream.Collectors.toList());
+
+            // If a product exists globally but has no branch mappings yet, show zero balances for branches
+            if (details.isEmpty()) {
+                details = List.of(
+                    GlobalInventorySearchDTO.OutletStockDetail.builder().outletId("O1").outletName("Main Branch — Andheri").stock(BigDecimal.ZERO).status("Critical").build(),
+                    GlobalInventorySearchDTO.OutletStockDetail.builder().outletId("O2").outletName("Bandra West Outlet").stock(BigDecimal.ZERO).status("Critical").build(),
+                    GlobalInventorySearchDTO.OutletStockDetail.builder().outletId("O3").outletName("Powai Branch").stock(BigDecimal.ZERO).status("Critical").build()
+                );
+            }
+
+            return GlobalInventorySearchDTO.builder()
+                    .productId(product.getId())
+                    .productName(product.getName())
+                    .sku(product.getSku())
+                    .totalStock(product.getCurrentStock())
+                    .outlets(details)
+                    .build();
+        }).collect(java.util.stream.Collectors.toList());
+    }
 
     @Transactional(readOnly = true)
     public InventorySummaryDTO getInventorySummary() {
@@ -307,6 +356,10 @@ public class InventoryService {
         StockTransferOrder sto = stoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("STO not found"));
 
+        if ("RECEIVED".equalsIgnoreCase(status) && !"RECEIVED".equalsIgnoreCase(sto.getStatus())) {
+            updateOutletStocks(sto);
+        }
+
         sto.setStatus(status);
 
         if ("APPROVED".equalsIgnoreCase(status) && approverId != null) {
@@ -318,6 +371,53 @@ public class InventoryService {
         sto = stoRepository.save(sto);
         log.info("STO {} status updated to {}", sto.getStoNumber(), status);
         return mapToStoDTO(sto);
+    }
+
+    private void updateOutletStocks(StockTransferOrder sto) {
+        String sourceOutletId = getOutletIdFromName(sto.getSourceBranchName());
+        String destOutletId = getOutletIdFromName(sto.getDestBranchName());
+        Product product = sto.getProduct();
+        BigDecimal quantity = sto.getTransferQuantity();
+
+        if (sourceOutletId != null) {
+            OutletStock sourceStock = outletStockRepository.findByProductIdAndOutletId(product.getId(), sourceOutletId)
+                    .orElseGet(() -> {
+                        return OutletStock.builder()
+                                .product(product)
+                                .outletId(sourceOutletId)
+                                .currentStock(BigDecimal.ZERO)
+                                .minStock(BigDecimal.ZERO)
+                                .build();
+                    });
+            sourceStock.setCurrentStock(sourceStock.getCurrentStock().subtract(quantity));
+            sourceStock.setUpdatedAt(LocalDateTime.now());
+            outletStockRepository.save(sourceStock);
+        }
+
+        if (destOutletId != null) {
+            OutletStock destStock = outletStockRepository.findByProductIdAndOutletId(product.getId(), destOutletId)
+                    .orElseGet(() -> {
+                        return OutletStock.builder()
+                                .product(product)
+                                .outletId(destOutletId)
+                                .currentStock(BigDecimal.ZERO)
+                                .minStock(BigDecimal.ZERO)
+                                .build();
+                    });
+            destStock.setCurrentStock(destStock.getCurrentStock().add(quantity));
+            destStock.setUpdatedAt(LocalDateTime.now());
+            outletStockRepository.save(destStock);
+        }
+    }
+
+    private String getOutletIdFromName(String name) {
+        if (name == null) return null;
+        if (name.contains("Main Branch") || name.contains("Andheri")) return "O1";
+        if (name.contains("Bandra")) return "O2";
+        if (name.contains("Powai")) return "O3";
+        if (name.contains("Thane")) return "O4";
+        if (name.contains("HQ")) return "HQ";
+        return null;
     }
 
     @Transactional(readOnly = true)

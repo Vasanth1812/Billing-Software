@@ -209,6 +209,7 @@ public class PurchaseService {
                 .paymentMode(dto.getPaymentMode())
                 .dueDate(dto.getDueDate())
                 .status(dto.getStatus() != null ? dto.getStatus() : "pending")
+                .outletId(dto.getOutletId())
                 .build();
 
         // 5. Associate items with the order
@@ -246,6 +247,7 @@ public class PurchaseService {
         existing.setPaymentMode(dto.getPaymentMode());
         existing.setDueDate(dto.getDueDate());
         existing.setStatus(dto.getStatus() != null ? dto.getStatus() : "pending");
+        existing.setOutletId(dto.getOutletId());
 
         // Collect all new product IDs that are NOT existing purchase item IDs
         List<UUID> productUuids = new ArrayList<>();

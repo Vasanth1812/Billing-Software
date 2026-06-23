@@ -24,6 +24,11 @@ public class InventoryController {
         return ResponseEntity.ok(inventoryService.getInventorySummary());
     }
 
+    @GetMapping("/global-search")
+    public ResponseEntity<List<GlobalInventorySearchDTO>> searchGlobalInventory(@RequestParam String query) {
+        return ResponseEntity.ok(inventoryService.searchGlobalInventory(query));
+    }
+
     @GetMapping("/products")
     public ResponseEntity<List<com.Billing_System.dto.InventoryProductDTO>> getInventoryProducts(
             @RequestParam(required = false, defaultValue = "ALL") String status) {

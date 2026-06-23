@@ -57,6 +57,9 @@ public class PurchaseOrder {
     @Column(name = "status", length = 20)
     private String status = "pending";
 
+    @Column(name = "outlet_id", length = 50)
+    private String outletId;
+
     @Builder.Default
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
