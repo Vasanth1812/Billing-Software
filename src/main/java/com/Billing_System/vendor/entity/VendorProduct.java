@@ -101,6 +101,10 @@ public class VendorProduct {
     private UUID mappedProductId;
 
     @Builder.Default
+    @Column(name = "current_stock", precision = 10, scale = 3)
+    private BigDecimal currentStock = BigDecimal.ZERO;
+
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 

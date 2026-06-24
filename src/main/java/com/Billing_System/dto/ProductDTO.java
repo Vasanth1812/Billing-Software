@@ -49,6 +49,8 @@ public class ProductDTO {
 
     private String description;
 
+    private UUID freeProductId;
+
     @JsonProperty("currentStock")
     @DecimalMin(value = "0.0", message = "Stock cannot be negative")
     private BigDecimal currentStock;

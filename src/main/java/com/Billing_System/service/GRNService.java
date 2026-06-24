@@ -88,6 +88,12 @@ public class GRNService {
         }
 
         GRN savedGrn = grnRepository.save(grn);
+        
+        // Auto-approve to update stock immediately for finalized GRNs
+        if (!"DRAFT".equalsIgnoreCase(initialStatus)) {
+            return approveGRN(savedGrn.getId());
+        }
+        
         return mapToDTO(savedGrn);
     }
 
@@ -132,9 +138,11 @@ public class GRNService {
             }
             purchaseItemRepository.save(poItem);
 
-            // Map Vendor Product to Store Product if not already mapped or if mapped on the fly
+            // Update Vendor Inventory Stock & Map Vendor Product to Store Product
             if (item.getVendorProduct() != null) {
                 VendorProduct vp = item.getVendorProduct();
+                BigDecimal currentVpStock = vp.getCurrentStock() != null ? vp.getCurrentStock() : BigDecimal.ZERO;
+                vp.setCurrentStock(currentVpStock.add(acceptedQty));
                 vp.setMappedProductId(product.getId());
                 vp.setUpdatedAt(LocalDateTime.now());
                 vendorProductRepository.save(vp);

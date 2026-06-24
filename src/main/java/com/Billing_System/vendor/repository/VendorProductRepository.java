@@ -48,4 +48,8 @@ public interface VendorProductRepository extends JpaRepository<VendorProduct, UU
 
     /** All expired products for a specific vendor */
     List<VendorProduct> findByVendorIdAndExpiryDateBeforeAndIsActiveTrue(UUID vendorId, java.time.LocalDate date);
+
+    /** Find all products with stock > 0 */
+    @Query("SELECT vp FROM VendorProduct vp WHERE vp.isActive = true AND vp.currentStock > 0 ORDER BY vp.productName ASC")
+    List<VendorProduct> findInStockProducts();
 }

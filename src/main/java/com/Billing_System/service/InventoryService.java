@@ -327,7 +327,7 @@ public class InventoryService {
                 .destBranchName(request.getDestBranchName())
                 .transferQuantity(request.getTransferQuantity())
                 .transferDate(request.getTransferDate())
-                .status("DRAFT")
+                .status("PENDING")
                 .transferMode(request.getTransferMode())
                 .priority(request.getPriority())
                 .capitalSaved(request.getCapitalSaved())
@@ -356,7 +356,7 @@ public class InventoryService {
         StockTransferOrder sto = stoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("STO not found"));
 
-        if ("RECEIVED".equalsIgnoreCase(status) && !"RECEIVED".equalsIgnoreCase(sto.getStatus())) {
+        if ("APPROVED".equalsIgnoreCase(status) && !"APPROVED".equalsIgnoreCase(sto.getStatus())) {
             updateOutletStocks(sto);
         }
 

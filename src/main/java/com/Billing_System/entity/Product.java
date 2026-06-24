@@ -66,6 +66,11 @@ public class Product {
     @Column(name = "description", length = 500)
     private String description;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "free_product_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("freeProduct")
+    private Product freeProduct;
+
     @Builder.Default
     @Column(name = "current_stock", precision = 10, scale = 3)
     private BigDecimal currentStock = BigDecimal.ZERO;

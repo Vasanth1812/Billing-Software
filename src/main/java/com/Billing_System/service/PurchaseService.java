@@ -199,6 +199,11 @@ public class PurchaseService {
                 ? invoiceNumberGenerator.generateNextForPurchase()
                 : dto.getInvoiceNumber();
 
+        String finalStatus = dto.getStatus();
+        if (finalStatus == null || finalStatus.equalsIgnoreCase("pending")) {
+            finalStatus = "APPROVED";
+        }
+
         PurchaseOrder order = PurchaseOrder.builder()
                 .vendor(vendor)
                 .invoiceNumber(invoiceNumber)
@@ -208,7 +213,7 @@ public class PurchaseService {
                 .grandTotal(grandTotal)
                 .paymentMode(dto.getPaymentMode())
                 .dueDate(dto.getDueDate())
-                .status(dto.getStatus() != null ? dto.getStatus() : "pending")
+                .status(finalStatus)
                 .outletId(dto.getOutletId())
                 .build();
 
@@ -246,7 +251,11 @@ public class PurchaseService {
         existing.setInvoiceDate(dto.getInvoiceDate() != null ? dto.getInvoiceDate() : LocalDate.now());
         existing.setPaymentMode(dto.getPaymentMode());
         existing.setDueDate(dto.getDueDate());
-        existing.setStatus(dto.getStatus() != null ? dto.getStatus() : "pending");
+        String updatedStatus = dto.getStatus();
+        if (updatedStatus == null || updatedStatus.equalsIgnoreCase("pending")) {
+            updatedStatus = "APPROVED";
+        }
+        existing.setStatus(updatedStatus);
         existing.setOutletId(dto.getOutletId());
 
         // Collect all new product IDs that are NOT existing purchase item IDs

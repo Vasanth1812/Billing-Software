@@ -48,6 +48,13 @@ public class VendorProductController {
 
         // ── Template Download ─────────────────────────────────────────────────────
 
+        @GetMapping("/api/vendor-products")
+        @Transactional(readOnly = true)
+        public ResponseEntity<List<VendorProductDTO>> getAllVendorProducts() {
+                List<VendorProduct> products = productRepository.findAll();
+                return ResponseEntity.ok(products.stream().map(this::toDTO).collect(Collectors.toList()));
+        }
+
         /**
          * GET /api/vendor-products/template
          * Download the blank Excel template for vendor product bulk upload.
@@ -126,6 +133,17 @@ public class VendorProductController {
         }
 
         /**
+         * GET /api/vendor-products/in-stock
+         * List all in-stock vendor products (used for warehouse).
+         */
+        @GetMapping("/api/vendor-products/in-stock")
+        @Transactional(readOnly = true)
+        public ResponseEntity<List<VendorProductDTO>> getInStockVendorProducts() {
+                List<VendorProduct> products = productRepository.findInStockProducts();
+                return ResponseEntity.ok(products.stream().map(this::toDTO).collect(Collectors.toList()));
+        }
+
+        /**
          * GET /api/vendor-products/{id}
          * Single vendor product detail.
          */
@@ -172,18 +190,7 @@ public class VendorProductController {
                 return ResponseEntity.ok(toDTO(vp));
         }
 
-        /**
-         * GET /api/vendor-products
-         * List all active vendor products across all vendors (for global product screen).
-         */
-        @GetMapping("/api/vendor-products")
-        @Transactional(readOnly = true)
-        public ResponseEntity<List<VendorProductDTO>> getAllProductsGlobal() {
-                List<VendorProduct> products = productRepository.findAll();
-                return ResponseEntity.ok(products.stream()
-                                .map(this::toDTO)
-                                .collect(Collectors.toList()));
-        }
+
 
         /**
          * PUT /api/vendor-products/{id}/deactivate
@@ -268,6 +275,7 @@ public class VendorProductController {
                                 .batchNumber(vp.getBatchNumber())
                                 .expiryDate(vp.getExpiryDate())
                                 .mappedProductId(vp.getMappedProductId())
+                                .currentStock(vp.getCurrentStock())
                                 .isActive(vp.isActive())
                                 .createdAt(vp.getCreatedAt())
                                 .updatedAt(vp.getUpdatedAt())

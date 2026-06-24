@@ -29,6 +29,9 @@ public class Category {
     @Column(name = "gst_rate", precision = 5, scale = 2)
     private BigDecimal gstRate;
 
+    @Column(name = "color", length = 20)
+    private String color;
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
@@ -78,6 +81,14 @@ public class Category {
         this.gstRate = gstRate;
     }
 
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
     public Boolean getIsActive() {
         return isActive;
     }
@@ -103,6 +114,7 @@ public class Category {
         private String description;
         private BigDecimal sellingPrice;
         private BigDecimal gstRate;
+        private String color;
 
         public CategoryBuilder name(String name) {
             this.name = name;
@@ -124,12 +136,18 @@ public class Category {
             return this;
         }
 
+        public CategoryBuilder color(String color) {
+            this.color = color;
+            return this;
+        }
+
         public Category build() {
             Category c = new Category();
             c.setName(name);
             c.setDescription(description);
             c.setSellingPrice(sellingPrice);
             c.setGstRate(gstRate);
+            c.setColor(color);
             return c;
         }
     }

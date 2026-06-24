@@ -28,6 +28,7 @@ public class VendorProductDTO {
     private String     batchNumber;
     private java.time.LocalDate expiryDate;
     private UUID       mappedProductId;  // store product link
+    private BigDecimal currentStock;
     private boolean    isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

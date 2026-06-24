@@ -78,6 +78,11 @@ public class ProductService {
         Category category = resolveCategory(dto.getCategoryId());
         Supplier primarySupplier = resolvePrimarySupplier(dto.getPrimarySupplierId());
 
+        Product freeProduct = null;
+        if (dto.getFreeProductId() != null) {
+            freeProduct = getProductById(dto.getFreeProductId());
+        }
+
         Product product = Product.builder()
                 .name(dto.getName())
                 .sku(dto.getSku())
@@ -92,6 +97,7 @@ public class ProductService {
                 .brand(dto.getBrand())
                 .sellingPrice(dto.getSellingPrice())
                 .description(dto.getDescription())
+                .freeProduct(freeProduct)
                 .minStock(dto.getMinStock())
                 .currentStock(dto.getCurrentStock() != null ? dto.getCurrentStock() : java.math.BigDecimal.ZERO)
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
@@ -122,6 +128,13 @@ public class ProductService {
         product.setSellingPrice(dto.getSellingPrice());
         product.setDescription(dto.getDescription());
         product.setMinStock(dto.getMinStock());
+        
+        if (dto.getFreeProductId() != null) {
+            Product freeProduct = getProductById(dto.getFreeProductId());
+            product.setFreeProduct(freeProduct);
+        } else {
+            product.setFreeProduct(null);
+        }
 
         if (dto.getCurrentStock() != null) product.setCurrentStock(dto.getCurrentStock());
         if (dto.getIsActive() != null)     product.setIsActive(dto.getIsActive());
