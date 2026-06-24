@@ -13,7 +13,5 @@ import java.util.UUID;
 @AllArgsConstructor
 public class WarehouseRackDTO {
     private String id;
-    private Integer rowNum;
-    private Integer colNum;
     private UUID categoryId;
 }

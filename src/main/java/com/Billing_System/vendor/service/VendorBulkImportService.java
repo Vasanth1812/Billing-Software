@@ -95,6 +95,7 @@ public class VendorBulkImportService {
 
     private final VendorRepository        vendorRepository;
     private final VendorProductRepository vendorProductRepository;
+    private final com.Billing_System.vendor.repository.VendorCategoryRepository vendorCategoryRepository;
 
     /**
      * Main entry point — parse XLSX, upsert vendor products, return import report.
@@ -230,6 +231,20 @@ public class VendorBulkImportService {
                         } catch (NumberFormatException e) {
                             // non-critical — just ignore invalid min qty
                             log.warn("Row {}: Invalid Min Order Qty '{}' — ignored", excelRow, minQtyStr);
+                        }
+                    }
+
+                    // --- Upsert Category if it exists ---
+                    if (category != null && !category.isBlank()) {
+                        String catTrimmed = category.trim();
+                        // Find or create category
+                        if (vendorCategoryRepository.findByNameIgnoreCase(catTrimmed).isEmpty()) {
+                            com.Billing_System.vendor.entity.VendorCategory newCat = 
+                                com.Billing_System.vendor.entity.VendorCategory.builder()
+                                    .name(catTrimmed)
+                                    .color("slate")
+                                    .build();
+                            vendorCategoryRepository.save(newCat);
                         }
                     }
 

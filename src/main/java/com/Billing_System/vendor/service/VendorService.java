@@ -39,6 +39,7 @@ public class VendorService {
     private final PurchaseOrderRepository     purchaseOrderRepository;
     private final VendorProductRepository     vendorProductRepository;
     private final VendorDisputeRepository     vendorDisputeRepository;
+    private final VendorCategoryRepository    vendorCategoryRepository;
     private final ApplicationEventPublisher   eventPublisher;
 
     // ─── Vendor CRUD ────────────────────────────────────────────────────────────
@@ -556,6 +557,18 @@ public class VendorService {
         if (vendorProductRepository.existsByVendorIdAndVendorSku(vendorId, dto.getVendorSku())) {
             throw new IllegalArgumentException(
                 "Vendor SKU '" + dto.getVendorSku() + "' already exists for this vendor.");
+        }
+
+        // --- Upsert Category if it exists ---
+        if (dto.getCategory() != null && !dto.getCategory().isBlank()) {
+            String catTrimmed = dto.getCategory().trim();
+            if (vendorCategoryRepository.findByNameIgnoreCase(catTrimmed).isEmpty()) {
+                VendorCategory newCat = VendorCategory.builder()
+                        .name(catTrimmed)
+                        .color("slate")
+                        .build();
+                vendorCategoryRepository.save(newCat);
+            }
         }
 
         VendorProduct product = VendorProduct.builder()

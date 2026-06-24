@@ -32,8 +32,6 @@ public class WarehouseService {
     public List<WarehouseRackDTO> getAllRacks() {
         return rackRepository.findAll().stream().map(rack -> WarehouseRackDTO.builder()
                 .id(rack.getId())
-                .rowNum(rack.getRowNum())
-                .colNum(rack.getColNum())
                 .categoryId(rack.getCategory() != null ? rack.getCategory().getId() : null)
                 .build()).collect(Collectors.toList());
     }
@@ -42,8 +40,6 @@ public class WarehouseService {
     public WarehouseRackDTO createRack(WarehouseRackDTO dto) {
         WarehouseRack rack = new WarehouseRack();
         rack.setId(dto.getId());
-        rack.setRowNum(dto.getRowNum());
-        rack.setColNum(dto.getColNum());
         if (dto.getCategoryId() != null) {
             rack.setCategory(vendorCategoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new RuntimeException("Category not found")));
@@ -61,8 +57,6 @@ public class WarehouseService {
         rack = rackRepository.save(rack);
         return WarehouseRackDTO.builder()
                 .id(rack.getId())
-                .rowNum(rack.getRowNum())
-                .colNum(rack.getColNum())
                 .categoryId(rack.getCategory().getId())
                 .build();
     }

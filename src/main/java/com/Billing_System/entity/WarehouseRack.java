@@ -18,13 +18,7 @@ public class WarehouseRack {
 
     @Id
     @Column(name = "id", updatable = false, nullable = false)
-    private String id; // e.g. R-1-1
-
-    @Column(name = "row_num", nullable = false)
-    private Integer rowNum;
-
-    @Column(name = "col_num", nullable = false)
-    private Integer colNum;
+    private String id; // e.g. R-1, R-2
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_category_id")
