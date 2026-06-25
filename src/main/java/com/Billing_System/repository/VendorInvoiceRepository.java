@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -15,6 +16,7 @@ public interface VendorInvoiceRepository extends JpaRepository<VendorInvoice, UU
     List<VendorInvoice> findByVendorId(UUID vendorId);
     List<VendorInvoice> findByPurchaseOrderId(UUID poId);
     boolean existsByInvoiceNumberAndVendorId(String invoiceNumber, UUID vendorId);
+    Optional<VendorInvoice> findByInvoiceNumber(String invoiceNumber);
 
     // ─── Reports Hub Queries ──────────────────────────────────────────────────────
 
