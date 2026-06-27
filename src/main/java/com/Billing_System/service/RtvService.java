@@ -71,7 +71,7 @@ public class RtvService {
                 .grn(grn)
                 .purchaseOrder(grn.getPurchaseOrder())
                 .vendor(grn.getVendor())
-                .status(dto.getStatus() != null ? dto.getStatus() : "DEBIT_NOTE_RAISED")
+                .status(dto.getStatus() != null ? dto.getStatus() : "INITIATED")
                 .totalReturnValue(dto.getTotalReturnValue() != null ? dto.getTotalReturnValue() : BigDecimal.ZERO)
                 .createdBy(user)
                 .build();

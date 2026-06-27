@@ -201,7 +201,7 @@ public class PurchaseService {
 
         String finalStatus = dto.getStatus();
         if (finalStatus == null || finalStatus.equalsIgnoreCase("pending")) {
-            finalStatus = "APPROVED";
+            finalStatus = "ACTIVE";
         }
 
         PurchaseOrder order = PurchaseOrder.builder()
@@ -253,7 +253,7 @@ public class PurchaseService {
         existing.setDueDate(dto.getDueDate());
         String updatedStatus = dto.getStatus();
         if (updatedStatus == null || updatedStatus.equalsIgnoreCase("pending")) {
-            updatedStatus = "APPROVED";
+            updatedStatus = "ACTIVE";
         }
         existing.setStatus(updatedStatus);
         existing.setOutletId(dto.getOutletId());
@@ -370,8 +370,8 @@ public class PurchaseService {
         PurchaseOrder existing = purchaseOrderRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Purchase order not found with ID: " + id));
         
-        if ("ACTIVE".equalsIgnoreCase(status) || "ACCEPTED".equalsIgnoreCase(status)) {
-            existing.setStatus("ACTIVE");
+        if ("APPROVED".equalsIgnoreCase(status) || "ACCEPTED".equalsIgnoreCase(status)) {
+            existing.setStatus("ACCEPTED");
             existing.setExpectedDeliveryDate(deliveryDate);
         } else if ("DECLINED_BY_VENDOR".equalsIgnoreCase(status)) {
             existing.setStatus("DECLINED_BY_VENDOR");

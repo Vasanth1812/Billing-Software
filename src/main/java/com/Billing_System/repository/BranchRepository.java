@@ -1,10 +1,9 @@
 package com.Billing_System.repository;
 
-import com.Billing_System.entity.Role;
+import com.Billing_System.entity.Branch;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface RoleRepository extends JpaRepository<Role, String> {
-    boolean existsByName(String name);
+public interface BranchRepository extends JpaRepository<Branch, String> {
 }

@@ -3,6 +3,7 @@ package com.Billing_System.service;
 import com.Billing_System.dto.UserDTO;
 import com.Billing_System.entity.User;
 import com.Billing_System.repository.UserRepository;
+import com.Billing_System.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     /** Get all active users */
@@ -38,6 +40,9 @@ public class UserService {
         }
         if (userRepository.existsByUserId(dto.getUserId())) {
             throw new IllegalArgumentException("User with ID '" + dto.getUserId() + "' already exists");
+        }
+        if (dto.getRole() != null && !roleRepository.existsByName(dto.getRole())) {
+            throw new IllegalArgumentException("Role '" + dto.getRole() + "' does not exist in the system");
         }
 
         User user = User.builder()
@@ -62,6 +67,9 @@ public class UserService {
         // Allow userId update only if not taken by another user
         if (!user.getUserId().equals(dto.getUserId()) && userRepository.existsByUserId(dto.getUserId())) {
             throw new IllegalArgumentException("User ID '" + dto.getUserId() + "' is already taken");
+        }
+        if (dto.getRole() != null && !dto.getRole().equals(user.getRole()) && !roleRepository.existsByName(dto.getRole())) {
+            throw new IllegalArgumentException("Role '" + dto.getRole() + "' does not exist in the system");
         }
 
         user.setName(dto.getName());
