@@ -16,7 +16,13 @@ import java.util.UUID;
  * Implements the 3-Way Match paradigm (PO vs GRN vs Invoice).
  */
 @Entity
-@Table(name = "vendor_invoices")
+@Table(name = "vendor_invoices",
+        indexes = {
+            @Index(name = "idx_vi_vendor_id",          columnList = "vendor_id"),
+            @Index(name = "idx_vi_po_id",              columnList = "po_id"),
+            @Index(name = "idx_vi_submission_status",   columnList = "submission_status"),
+            @Index(name = "idx_vi_three_way_match",     columnList = "three_way_match")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -13,7 +13,12 @@ import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
-@Table(name = "purchase_orders")
+@Table(name = "purchase_orders",
+        indexes = {
+            @Index(name = "idx_po_status",      columnList = "status"),
+            @Index(name = "idx_po_created_at",  columnList = "created_at"),
+            @Index(name = "idx_po_vendor_id",   columnList = "vendor_id")
+        })
 @Check(constraints = "vendor_id IS NOT NULL")
 @Data
 @NoArgsConstructor
@@ -66,6 +71,9 @@ public class PurchaseOrder {
 
     @Column(name = "expected_delivery_date")
     private LocalDate expectedDeliveryDate;
+
+    @Column(name = "vendor_notes", length = 1000)
+    private String vendorNotes;
 
     @Builder.Default
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)

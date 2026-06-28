@@ -30,10 +30,11 @@ public class PurchaseService {
     private final com.Billing_System.vendor.repository.VendorRepository vendorRepository;
     private final com.Billing_System.vendor.repository.VendorProductRepository vendorProductRepository;
 
-    /** List all purchase orders + sales (merged), newest first */
+    /** List all purchase orders + sales (merged), newest first. Limited to recent 100 to avoid loading full tables. */
     @Transactional(readOnly = true)
     public List<com.Billing_System.dto.TransactionOverviewDTO> getAllPurchases() {
-        List<PurchaseOrder> orders = purchaseOrderRepository.findAllByOrderByCreatedAtDesc();
+        org.springframework.data.domain.Pageable top100 = org.springframework.data.domain.PageRequest.of(0, 100);
+        List<PurchaseOrder> orders = purchaseOrderRepository.findRecentPurchases(top100);
         // Trigger lazy loading
         orders.forEach(order -> order.getItems().size());
 
@@ -52,11 +53,12 @@ public class PurchaseService {
                     .status(po.getStatus())
                     .createdAt(po.getCreatedAt())
                     .itemCount(po.getItems() != null ? po.getItems().size() : 0)
+                    .expectedDeliveryDate(po.getExpectedDeliveryDate())
                     .build());
         }
 
         // Add Sales (POS transactions)
-        List<SalesInvoice> sales = salesInvoiceRepository.findAllWithItemsOrderByCreatedAtDesc();
+        List<SalesInvoice> sales = salesInvoiceRepository.findRecentSales(top100);
         for (SalesInvoice si : sales) {
             result.add(com.Billing_System.dto.TransactionOverviewDTO.builder()
                     .id(si.getId())
@@ -75,6 +77,10 @@ public class PurchaseService {
         // Sort by created at descending
         result.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
 
+        // Return top 100 overall
+        if (result.size() > 100) {
+            return result.subList(0, 100);
+        }
         return result;
     }
 
@@ -366,13 +372,14 @@ public class PurchaseService {
         return purchaseOrderRepository.save(existing);
     }
 
-    public PurchaseOrder vendorRespondToPO(UUID id, String status, LocalDate deliveryDate) {
+    public PurchaseOrder vendorRespondToPO(UUID id, String status, LocalDate deliveryDate, String vendorNotes) {
         PurchaseOrder existing = purchaseOrderRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Purchase order not found with ID: " + id));
         
         if ("APPROVED".equalsIgnoreCase(status) || "ACCEPTED".equalsIgnoreCase(status)) {
             existing.setStatus("ACCEPTED");
             existing.setExpectedDeliveryDate(deliveryDate);
+            existing.setVendorNotes(vendorNotes);
         } else if ("DECLINED_BY_VENDOR".equalsIgnoreCase(status)) {
             existing.setStatus("DECLINED_BY_VENDOR");
         } else {

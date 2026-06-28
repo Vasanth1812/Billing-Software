@@ -7,7 +7,11 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
-@Table(name = "purchase_items")
+@Table(name = "purchase_items",
+        indexes = {
+            @Index(name = "idx_pi_po_id",      columnList = "purchase_order_id"),
+            @Index(name = "idx_pi_product_id",  columnList = "product_id")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,13 +23,13 @@ public class PurchaseItem {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "purchase_order_id", nullable = false)
     @ToString.Exclude
     @JsonIgnore // Prevents circular: PurchaseOrder→items→PurchaseItem→purchaseOrder→∞
     private PurchaseOrder purchaseOrder;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = true)
     private Product product;
 

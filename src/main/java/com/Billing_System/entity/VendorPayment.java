@@ -17,7 +17,12 @@ import java.util.UUID;
  * Includes deductions for Shortages (hold_amount) and GST mismatches (itc_hold_amount).
  */
 @Entity
-@Table(name = "vendor_payments")
+@Table(name = "vendor_payments",
+        indexes = {
+            @Index(name = "idx_vp_vendor_id",  columnList = "vendor_id"),
+            @Index(name = "idx_vp_invoice_id", columnList = "invoice_id"),
+            @Index(name = "idx_vp_status",     columnList = "status")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

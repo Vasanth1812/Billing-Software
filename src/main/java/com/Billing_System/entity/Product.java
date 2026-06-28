@@ -7,7 +7,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "products")
+@Table(name = "products",
+        indexes = {
+            @Index(name = "idx_product_category_id", columnList = "category_id"),
+            @Index(name = "idx_product_barcode",     columnList = "barcode"),
+            @Index(name = "idx_product_is_active",   columnList = "is_active")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,7 +30,7 @@ public class Product {
     @Column(name = "sku", nullable = false, unique = true, length = 50)
     private String sku;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
 
@@ -35,7 +40,7 @@ public class Product {
      * Nullable: existing products and walk-in purchases still work.
      * In bulk import (Option A): supplier name MUST exist in suppliers table.
      */
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "primary_supplier_id")
     private Supplier primarySupplier;
 
@@ -66,7 +71,7 @@ public class Product {
     @Column(name = "description", length = 500)
     private String description;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "free_product_id")
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties("freeProduct")
     private Product freeProduct;

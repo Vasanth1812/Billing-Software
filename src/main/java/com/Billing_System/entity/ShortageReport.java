@@ -15,7 +15,12 @@ import java.util.UUID;
  * Automatically created when a GRN is finalized with rejected/missing quantities.
  */
 @Entity
-@Table(name = "shortage_reports")
+@Table(name = "shortage_reports",
+        indexes = {
+            @Index(name = "idx_sr_grn_id",    columnList = "grn_id"),
+            @Index(name = "idx_sr_vendor_id",  columnList = "vendor_id"),
+            @Index(name = "idx_sr_status",     columnList = "status")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

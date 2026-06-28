@@ -20,4 +20,17 @@ public interface GRNRepository extends JpaRepository<GRN, UUID> {
     List<GRN> findByStatus(String status);
 
     List<GRN> findByReceivedDateBetween(java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
+
+    /**
+     * Eagerly loads vendor, purchaseOrder, and receivedBy in ONE query.
+     * Items are loaded via @BatchSize on the entity.
+     * Eliminates N+1 in GRNService.getAllGRNs().
+     */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT DISTINCT g FROM GRN g " +
+        "LEFT JOIN FETCH g.vendor " +
+        "LEFT JOIN FETCH g.purchaseOrder " +
+        "LEFT JOIN FETCH g.receivedBy " +
+        "ORDER BY g.createdAt DESC")
+    List<GRN> findAllWithDetails();
 }

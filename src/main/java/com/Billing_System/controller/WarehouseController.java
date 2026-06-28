@@ -19,6 +19,36 @@ public class WarehouseController {
 
     private final WarehouseService warehouseService;
 
+    // --- Warehouse Entity CRUD ---
+
+    @GetMapping("/entities")
+    public ResponseEntity<List<WarehouseDTO>> getAllWarehouses() {
+        return ResponseEntity.ok(warehouseService.getAllWarehouses());
+    }
+
+    @GetMapping("/entities/{id}")
+    public ResponseEntity<WarehouseDTO> getWarehouseById(@PathVariable UUID id) {
+        return ResponseEntity.ok(warehouseService.getWarehouseById(id));
+    }
+
+    @PostMapping("/entities")
+    public ResponseEntity<WarehouseDTO> createWarehouse(@RequestBody WarehouseDTO dto) {
+        return ResponseEntity.status(201).body(warehouseService.createWarehouse(dto));
+    }
+
+    @PutMapping("/entities/{id}")
+    public ResponseEntity<WarehouseDTO> updateWarehouse(@PathVariable UUID id, @RequestBody WarehouseDTO dto) {
+        return ResponseEntity.ok(warehouseService.updateWarehouse(id, dto));
+    }
+
+    @DeleteMapping("/entities/{id}")
+    public ResponseEntity<Void> deleteWarehouse(@PathVariable UUID id) {
+        warehouseService.deleteWarehouse(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- End Warehouse Entity CRUD ---
+
     @GetMapping("/categories")
     public ResponseEntity<List<VendorCategory>> getCategories() {
         return ResponseEntity.ok(warehouseService.getWarehouseCategories());

@@ -13,7 +13,12 @@ import java.util.UUID;
  * Officially records the receipt of inventory against a Purchase Order.
  */
 @Entity
-@Table(name = "grn_header")
+@Table(name = "grn_header",
+        indexes = {
+            @Index(name = "idx_grn_vendor_id", columnList = "vendor_id"),
+            @Index(name = "idx_grn_po_id",     columnList = "purchase_order_id"),
+            @Index(name = "idx_grn_status",    columnList = "status")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

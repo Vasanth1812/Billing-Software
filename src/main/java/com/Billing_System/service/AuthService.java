@@ -91,6 +91,32 @@ public class AuthService {
     }
 
     /**
+     * REGISTER — create a new user account publicly.
+     */
+    public Map<String, String> register(RegisterRequestDTO request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+        if (userRepository.existsByUserId(request.getUserId())) {
+            throw new IllegalArgumentException("User ID already exists");
+        }
+
+        User user = User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .userId(request.getUserId())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(request.getRole())
+                .isActive(true)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        userRepository.save(user);
+
+        return Map.of("message", "Registration successful. You can now login.");
+    }
+
+    /**
      * FORGOT PASSWORD — Step 1: User sends email → system sends reset token via email.
      * Token is valid for 30 minutes.
      */

@@ -61,6 +61,7 @@ public class SecurityConfig {
 
                 // ── PUBLIC — no token needed ──────────────────────────────────
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/roles").permitAll() // Allow registration page to fetch roles
                 .requestMatchers("/*.html").permitAll() // Allow testing UI
 
                 // ── ADMIN only ────────────────────────────────────────────────

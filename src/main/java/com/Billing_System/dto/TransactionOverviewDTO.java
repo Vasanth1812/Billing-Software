@@ -24,4 +24,5 @@ public class TransactionOverviewDTO {
     private String status;
     private LocalDateTime createdAt;
     private Integer itemCount; // Number of unique SKUs/items in the transaction
+    private LocalDate expectedDeliveryDate;
 }

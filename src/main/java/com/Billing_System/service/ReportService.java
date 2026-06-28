@@ -187,11 +187,10 @@ public class ReportService {
     }
 
     private ReportKpiDTO getVendorMasterKpis() {
-        long total = vendorRepository.count();
-        java.util.List<com.Billing_System.vendor.entity.Vendor> vendors = vendorRepository.findAll();
-        long active = vendors.stream().filter(v -> "ACTIVE".equalsIgnoreCase(v.getKycStatus())).count();
-        long pendingDocs = vendors.stream().filter(v -> "PENDING".equalsIgnoreCase(v.getKycStatus())).count();
-        long riskFlagged = vendors.stream().filter(v -> "SUSPENDED".equalsIgnoreCase(v.getKycStatus()) || "NON_COMPLIANT".equalsIgnoreCase(v.getComplianceStatus())).count();
+        long total = vendorRepository.countActive();
+        long active = vendorRepository.countByKycStatus("ACTIVE");
+        long pendingDocs = vendorRepository.countByKycStatus("PENDING");
+        long riskFlagged = vendorRepository.countRiskFlagged();
 
         java.util.List<ReportKpiDTO.KpiItem> kpis = new java.util.ArrayList<>();
         kpis.add(new ReportKpiDTO.KpiItem("Total Vendors", String.valueOf(total), "blue", null));
@@ -202,11 +201,10 @@ public class ReportService {
     }
 
     private ReportKpiDTO getPOStatusKpis(String timePeriod) {
-        java.util.List<PurchaseOrder> pos = purchaseOrderRepository.findAll();
-        long total = pos.size();
-        long open = pos.stream().filter(p -> "PENDING".equalsIgnoreCase(p.getStatus()) || "APPROVED".equalsIgnoreCase(p.getStatus()) || "SENT".equalsIgnoreCase(p.getStatus())).count();
-        long completed = pos.stream().filter(p -> "COMPLETED".equalsIgnoreCase(p.getStatus())).count();
-        long cancelled = pos.stream().filter(p -> "CANCELLED".equalsIgnoreCase(p.getStatus())).count();
+        long total = purchaseOrderRepository.count();
+        long open = purchaseOrderRepository.countOpenPOs();
+        long completed = purchaseOrderRepository.countByStatus("COMPLETED");
+        long cancelled = purchaseOrderRepository.countByStatus("CANCELLED");
 
         java.util.List<ReportKpiDTO.KpiItem> kpis = new java.util.ArrayList<>();
         kpis.add(new ReportKpiDTO.KpiItem("Total POs", String.valueOf(total), "purple", null));
@@ -320,8 +318,20 @@ public class ReportService {
 
         LocalDate today = LocalDate.now();
 
+        // ── Batch-load ALL payment sums in ONE query instead of N queries ──
+        java.util.List<java.util.UUID> invoiceIds = outstandingInvoices.stream()
+                .map(com.Billing_System.entity.VendorInvoice::getId)
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.Map<java.util.UUID, BigDecimal> paidMap = new java.util.HashMap<>();
+        if (!invoiceIds.isEmpty()) {
+            for (Object[] row : vendorPaymentRepository.sumCompletedPaymentsGroupedByInvoice(invoiceIds)) {
+                paidMap.put((java.util.UUID) row[0], (BigDecimal) row[1]);
+            }
+        }
+
         for (com.Billing_System.entity.VendorInvoice vi : outstandingInvoices) {
-            BigDecimal paid = vendorPaymentRepository.sumCompletedPaymentsByInvoices(java.util.List.of(vi.getId()));
+            BigDecimal paid = paidMap.getOrDefault(vi.getId(), BigDecimal.ZERO);
             BigDecimal balance = vi.getTotalAmount().subtract(paid);
             if (balance.compareTo(BigDecimal.ZERO) <= 0) continue;
 
@@ -363,6 +373,27 @@ public class ReportService {
                 .filter(vi -> vi.getVendor() != null)
                 .collect(java.util.stream.Collectors.groupingBy(vi -> vi.getVendor().getId()));
 
+        // ── Batch-load ALL payment sums in ONE query instead of N queries ──
+        java.util.List<java.util.UUID> allInvoiceIds = outstanding.stream()
+                .map(com.Billing_System.entity.VendorInvoice::getId)
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.Map<java.util.UUID, BigDecimal> paidMap = new java.util.HashMap<>();
+        if (!allInvoiceIds.isEmpty()) {
+            for (Object[] row : vendorPaymentRepository.sumCompletedPaymentsGroupedByInvoice(allInvoiceIds)) {
+                paidMap.put((java.util.UUID) row[0], (BigDecimal) row[1]);
+            }
+        }
+
+        // ── Batch-load latest payment dates per vendor in ONE query ──
+        java.util.Set<java.util.UUID> vendorIds = byVendor.keySet();
+        java.util.Map<java.util.UUID, java.time.LocalDateTime> lastPaymentMap = new java.util.HashMap<>();
+        if (!vendorIds.isEmpty()) {
+            for (Object[] row : vendorPaymentRepository.findLatestPaymentDatesByVendorIds(new java.util.ArrayList<>(vendorIds))) {
+                lastPaymentMap.put((java.util.UUID) row[0], (java.time.LocalDateTime) row[1]);
+            }
+        }
+
         java.util.List<PayablesAgingRowDTO> allRows = new java.util.ArrayList<>();
 
         for (java.util.Map.Entry<java.util.UUID, java.util.List<com.Billing_System.entity.VendorInvoice>> entry : byVendor.entrySet()) {
@@ -378,7 +409,7 @@ public class ReportService {
             LocalDate oldestDate = null;
 
             for (com.Billing_System.entity.VendorInvoice vi : invoices) {
-                BigDecimal paidForInvoice = vendorPaymentRepository.sumCompletedPaymentsByInvoices(java.util.List.of(vi.getId()));
+                BigDecimal paidForInvoice = paidMap.getOrDefault(vi.getId(), BigDecimal.ZERO);
                 BigDecimal invoiceBalance = vi.getTotalAmount().subtract(paidForInvoice);
 
                 if (invoiceBalance.compareTo(BigDecimal.ZERO) <= 0) continue;
@@ -406,11 +437,9 @@ public class ReportService {
                 if (over90.compareTo(BigDecimal.ZERO) > 0) status = "CRITICAL";
                 else if (d61to90.compareTo(BigDecimal.ZERO) > 0 || d31to60.compareTo(BigDecimal.ZERO) > 0) status = "OVERDUE";
 
-                java.util.List<com.Billing_System.entity.VendorPayment> latestPayments = vendorPaymentRepository.findLatestByVendorId(vendorId);
-                String lastPaymentDate = null;
-                if (latestPayments != null && !latestPayments.isEmpty() && latestPayments.get(0).getCreatedAt() != null) {
-                    lastPaymentDate = latestPayments.get(0).getCreatedAt().toLocalDate().toString();
-                }
+                // Use batch-loaded latest payment date instead of per-vendor query
+                java.time.LocalDateTime latestPaymentDt = lastPaymentMap.get(vendorId);
+                String lastPaymentDate = latestPaymentDt != null ? latestPaymentDt.toLocalDate().toString() : null;
 
                 String search = normalizeSearch(request.getSearchQuery());
                 if (search != null) {

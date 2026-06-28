@@ -35,7 +35,7 @@ public class RtvService {
 
     @Transactional(readOnly = true)
     public List<RtvResponseDTO> getAllRtvRequests() {
-        return rtvRequestRepository.findAll().stream()
+        return rtvRequestRepository.findAllWithDetails().stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
     }
@@ -49,7 +49,7 @@ public class RtvService {
 
     @Transactional(readOnly = true)
     public RtvResponseDTO getRtvById(UUID id) {
-        RtvRequest rtv = rtvRequestRepository.findById(id)
+        RtvRequest rtv = rtvRequestRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("RTV Request not found"));
         return mapToDTO(rtv);
     }

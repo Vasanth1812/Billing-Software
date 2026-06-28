@@ -1,5 +1,7 @@
 package com.Billing_System.controller;
 
+import java.time.LocalDate;
+import java.util.Map;
 import java.util.Optional;
 
 import com.Billing_System.dto.PurchaseRequestDTO;
@@ -97,13 +99,15 @@ public class PurchaseController {
      * PUT /api/purchase-orders/{id}/vendor-response
      * Vendor responds to a PO (Accept/Decline) with an optional expected delivery date
      */
-    @PutMapping("/{id}/vendor-response")
-    public ResponseEntity<PurchaseOrder> vendorResponse(
+    @PostMapping("/{id}/respond")
+    public ResponseEntity<?> respondToPO(
             @PathVariable UUID id,
-            @RequestParam String status,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate deliveryDate) {
-        
-        PurchaseOrder updated = purchaseService.vendorRespondToPO(id, status, deliveryDate);
+            @RequestBody Map<String, String> payload) {
+        String status = payload.get("status");
+        String deliveryDateStr = payload.get("expectedDeliveryDate");
+        String vendorNotes = payload.get("vendorNotes");
+        LocalDate deliveryDate = deliveryDateStr != null ? LocalDate.parse(deliveryDateStr) : null;
+        PurchaseOrder updated = purchaseService.vendorRespondToPO(id, status, deliveryDate, vendorNotes);
         return ResponseEntity.ok(updated);
     }
 

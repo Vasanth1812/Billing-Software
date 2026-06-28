@@ -18,6 +18,17 @@ public interface VendorInvoiceRepository extends JpaRepository<VendorInvoice, UU
     boolean existsByInvoiceNumberAndVendorId(String invoiceNumber, UUID vendorId);
     Optional<VendorInvoice> findByInvoiceNumber(String invoiceNumber);
 
+    /**
+     * Eagerly loads vendor, grn, and purchaseOrder in ONE query.
+     * Eliminates N+1 in FinanceService.getAllInvoices().
+     */
+    @Query("SELECT vi FROM VendorInvoice vi " +
+           "LEFT JOIN FETCH vi.vendor " +
+           "LEFT JOIN FETCH vi.grn " +
+           "LEFT JOIN FETCH vi.purchaseOrder " +
+           "ORDER BY vi.createdAt DESC")
+    List<VendorInvoice> findAllWithDetails();
+
     // ─── Reports Hub Queries ──────────────────────────────────────────────────────
 
     /** Total outstanding amount across all approved invoices */

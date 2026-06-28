@@ -27,6 +27,9 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
        @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.vendor ORDER BY po.createdAt DESC")
        List<PurchaseOrder> findAllByOrderByCreatedAtDesc();
 
+       @Query("SELECT po FROM PurchaseOrder po LEFT JOIN FETCH po.vendor ORDER BY po.createdAt DESC")
+       List<PurchaseOrder> findRecentPurchases(Pageable pageable);
+
        /**
         * Single purchase with vendor AND items eagerly loaded in one query.
         * Safe for a single record (no Cartesian product issue for a single row).

@@ -24,6 +24,8 @@ public class WarehouseRack {
     @JoinColumn(name = "vendor_category_id")
     private com.Billing_System.vendor.entity.VendorCategory category;
 
+
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

@@ -27,6 +27,13 @@ public interface SalesInvoiceRepository extends JpaRepository<SalesInvoice, UUID
                      "ORDER BY si.createdAt DESC")
        List<SalesInvoice> findAllWithItemsOrderByCreatedAtDesc();
 
+       @Query("SELECT DISTINCT si FROM SalesInvoice si " +
+                     "LEFT JOIN FETCH si.items i " +
+                     "LEFT JOIN FETCH i.product p " +
+                     "LEFT JOIN FETCH p.category " +
+                     "ORDER BY si.createdAt DESC")
+       List<SalesInvoice> findRecentSales(org.springframework.data.domain.Pageable pageable);
+
        Optional<SalesInvoice> findByInvoiceNumber(String invoiceNumber);
 
        /**

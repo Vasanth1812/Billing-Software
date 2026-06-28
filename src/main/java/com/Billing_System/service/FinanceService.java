@@ -103,7 +103,7 @@ public class FinanceService {
 
     @Transactional(readOnly = true)
     public List<VendorInvoiceResponseDTO> getAllInvoices() {
-        return invoiceRepository.findAll().stream()
+        return invoiceRepository.findAllWithDetails().stream()
                 .map(this::mapToInvoiceDTO)
                 .collect(Collectors.toList());
     }
@@ -118,7 +118,7 @@ public class FinanceService {
 
     @Transactional(readOnly = true)
     public List<VendorPaymentResponseDTO> getAllVendorPayments() {
-        return paymentRepository.findAll().stream()
+        return paymentRepository.findAllWithDetails().stream()
                 .map(this::mapToPaymentDTO)
                 .collect(Collectors.toList());
     }

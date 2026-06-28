@@ -15,4 +15,13 @@ public interface OutletStockRepository extends JpaRepository<OutletStock, UUID> 
     
     // For global search
     List<OutletStock> findByProduct_NameContainingIgnoreCaseOrProduct_SkuContainingIgnoreCase(String name, String sku);
+
+    /**
+     * Batch-load outlet stocks for multiple products in ONE query.
+     * Eliminates per-product N+1 in InventoryService.searchGlobalInventory().
+     */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT os FROM OutletStock os WHERE os.product.id IN :productIds")
+    List<OutletStock> findByProductIdIn(
+        @org.springframework.data.repository.query.Param("productIds") List<UUID> productIds);
 }

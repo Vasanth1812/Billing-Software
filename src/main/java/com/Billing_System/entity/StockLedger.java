@@ -7,7 +7,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "stock_ledger")
+@Table(name = "stock_ledger",
+        indexes = {
+            @Index(name = "idx_ledger_product_id",  columnList = "product_id"),
+            @Index(name = "idx_ledger_txn_date",    columnList = "transaction_date"),
+            @Index(name = "idx_ledger_product_date", columnList = "product_id, transaction_date")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

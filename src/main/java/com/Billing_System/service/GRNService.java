@@ -231,8 +231,18 @@ public class GRNService {
 
     @Transactional(readOnly = true)
     public List<GRNResponseDTO> getAllGRNs() {
-        return grnRepository.findAll().stream()
-                .map(this::mapToDTO)
+        List<GRN> grns = grnRepository.findAllWithDetails();
+
+        // Batch-load ALL shortage reports in ONE query instead of N queries in mapToDTO
+        List<UUID> grnIds = grns.stream().map(GRN::getId).collect(Collectors.toList());
+        java.util.Map<UUID, ShortageReport> shortageMap = new java.util.HashMap<>();
+        if (!grnIds.isEmpty()) {
+            shortageReportRepository.findByGrnIdIn(grnIds).forEach(sr ->
+                shortageMap.putIfAbsent(sr.getGrn().getId(), sr));
+        }
+
+        return grns.stream()
+                .map(grn -> mapToDTO(grn, shortageMap))
                 .collect(Collectors.toList());
     }
 
@@ -251,6 +261,7 @@ public class GRNService {
     }
 
     private GRNResponseDTO mapToDTO(GRN grn) {
+        // Single-GRN lookup: query shortage report individually
         String shortageReportNumber = null;
         BigDecimal totalShortageValue = null;
         
@@ -261,6 +272,27 @@ public class GRNService {
             totalShortageValue = report.getTotalShortageValue();
         }
 
+        return buildGRNResponseDTO(grn, shortageReportNumber, totalShortageValue);
+    }
+
+    /**
+     * Overloaded mapToDTO that uses a pre-loaded shortage map (for batch/list operations).
+     * Eliminates per-GRN shortage report queries.
+     */
+    private GRNResponseDTO mapToDTO(GRN grn, java.util.Map<UUID, ShortageReport> shortageMap) {
+        String shortageReportNumber = null;
+        BigDecimal totalShortageValue = null;
+
+        ShortageReport report = shortageMap.get(grn.getId());
+        if (report != null) {
+            shortageReportNumber = report.getReportNumber();
+            totalShortageValue = report.getTotalShortageValue();
+        }
+
+        return buildGRNResponseDTO(grn, shortageReportNumber, totalShortageValue);
+    }
+
+    private GRNResponseDTO buildGRNResponseDTO(GRN grn, String shortageReportNumber, BigDecimal totalShortageValue) {
         return GRNResponseDTO.builder()
                 .id(grn.getId())
                 .grnNumber(grn.getGrnNumber())

@@ -19,4 +19,10 @@ public interface ShortageReportRepository extends JpaRepository<ShortageReport, 
     
     @Query("SELECT COUNT(s) FROM ShortageReport s")
     long countAllReports();
+
+    /**
+     * Batch-load shortage reports for multiple GRN IDs in one query.
+     * Eliminates per-GRN N+1 in GRNService.getAllGRNs().
+     */
+    List<ShortageReport> findByGrnIdIn(List<UUID> grnIds);
 }

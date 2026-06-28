@@ -15,7 +15,12 @@ import java.util.UUID;
  * Manages the physical return of damaged/rejected goods back to the supplier.
  */
 @Entity
-@Table(name = "rtv_requests")
+@Table(name = "rtv_requests",
+        indexes = {
+            @Index(name = "idx_rtv_vendor_id", columnList = "vendor_id"),
+            @Index(name = "idx_rtv_grn_id",    columnList = "grn_id"),
+            @Index(name = "idx_rtv_status",    columnList = "status")
+        })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

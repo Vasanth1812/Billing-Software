@@ -32,6 +32,16 @@ public class AuthController {
     }
 
     /**
+     * POST /api/auth/register
+     *
+     * Register a new user publicly.
+     */
+    @PostMapping("/register")
+    public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RegisterRequestDTO request) {
+        return ResponseEntity.ok(authService.register(request));
+    }
+
+    /**
      * POST /api/auth/forgot-password
      *
      * Send email to receive reset token.

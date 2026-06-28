@@ -30,8 +30,20 @@ public class InventoryService {
     @Transactional(readOnly = true)
     public List<GlobalInventorySearchDTO> searchGlobalInventory(String query) {
         List<Product> products = productRepository.searchByNameOrSku(query);
+
+        // ── Batch-load ALL outlet stocks in ONE query instead of N queries ──
+        List<UUID> productIds = products.stream()
+                .map(Product::getId)
+                .collect(java.util.stream.Collectors.toList());
+
+        java.util.Map<UUID, List<OutletStock>> stocksByProduct = new java.util.HashMap<>();
+        if (!productIds.isEmpty()) {
+            outletStockRepository.findByProductIdIn(productIds).forEach(os ->
+                stocksByProduct.computeIfAbsent(os.getProduct().getId(), k -> new java.util.ArrayList<>()).add(os));
+        }
+
         return products.stream().map(product -> {
-            List<OutletStock> outletStocks = outletStockRepository.findByProductId(product.getId());
+            List<OutletStock> outletStocks = stocksByProduct.getOrDefault(product.getId(), List.of());
             
             List<GlobalInventorySearchDTO.OutletStockDetail> details = outletStocks.stream().map(os -> {
                 String status = "Normal";

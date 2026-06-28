@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WarehouseService {
 
+    private final WarehouseRepository warehouseRepository;
     private final WarehouseRackRepository rackRepository;
     private final WarehouseStockRepository stockRepository;
     private final WarehouseMovementRepository movementRepository;
@@ -29,7 +30,95 @@ public class WarehouseService {
         return vendorCategoryRepository.findAll();
     }
 
+    // --- Warehouse Entity CRUD ---
+
+    @Transactional
+    public List<WarehouseDTO> getAllWarehouses() {
+        return warehouseRepository.findAll().stream()
+                .map(this::mapToWarehouseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public WarehouseDTO getWarehouseById(UUID id) {
+        Warehouse warehouse = warehouseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Warehouse not found"));
+        return mapToWarehouseDTO(warehouse);
+    }
+
+    @Transactional
+    public WarehouseDTO createWarehouse(WarehouseDTO dto) {
+        if (dto.getCode() != null && warehouseRepository.existsByCode(dto.getCode())) {
+            throw new IllegalArgumentException("Warehouse with code '" + dto.getCode() + "' already exists");
+        }
+        Warehouse warehouse = Warehouse.builder()
+                .name(dto.getName())
+                .code(dto.getCode())
+                .addressLine1(dto.getAddressLine1())
+                .city(dto.getCity())
+                .totalRacks(dto.getTotalRacks())
+                .squareFootage(dto.getSquareFootage())
+                .temperatureControlled(dto.getTemperatureControlled())
+                .managerId(dto.getManagerId())
+                .status(dto.getStatus() == null ? "Active" : dto.getStatus())
+                .build();
+        return mapToWarehouseDTO(warehouseRepository.save(warehouse));
+    }
+
+    @Transactional
+    public WarehouseDTO updateWarehouse(UUID id, WarehouseDTO dto) {
+        Warehouse warehouse = warehouseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Warehouse not found"));
+        
+        if (dto.getCode() != null && !dto.getCode().equals(warehouse.getCode()) && warehouseRepository.existsByCode(dto.getCode())) {
+            throw new IllegalArgumentException("Warehouse with code '" + dto.getCode() + "' already exists");
+        }
+
+        warehouse.setName(dto.getName());
+        warehouse.setCode(dto.getCode());
+        warehouse.setAddressLine1(dto.getAddressLine1());
+        warehouse.setCity(dto.getCity());
+        warehouse.setTotalRacks(dto.getTotalRacks());
+        warehouse.setSquareFootage(dto.getSquareFootage());
+        warehouse.setTemperatureControlled(dto.getTemperatureControlled());
+        warehouse.setManagerId(dto.getManagerId());
+        warehouse.setStatus(dto.getStatus());
+
+        return mapToWarehouseDTO(warehouseRepository.save(warehouse));
+    }
+
+    @Transactional
+    public void deleteWarehouse(UUID id) {
+        warehouseRepository.deleteById(id);
+    }
+
+    private WarehouseDTO mapToWarehouseDTO(Warehouse warehouse) {
+        return WarehouseDTO.builder()
+                .id(warehouse.getId())
+                .name(warehouse.getName())
+                .code(warehouse.getCode())
+                .addressLine1(warehouse.getAddressLine1())
+                .city(warehouse.getCity())
+                .totalRacks(warehouse.getTotalRacks())
+                .squareFootage(warehouse.getSquareFootage())
+                .temperatureControlled(warehouse.getTemperatureControlled())
+                .managerId(warehouse.getManagerId())
+                .status(warehouse.getStatus())
+                .createdAt(warehouse.getCreatedAt())
+                .updatedAt(warehouse.getUpdatedAt())
+                .build();
+    }
+    
+    // --- End Warehouse Entity CRUD ---
+
     public List<WarehouseRackDTO> getAllRacks() {
+        if (rackRepository.count() == 0) {
+            for(int i=1; i<=10; i++) {
+                WarehouseRack r = new WarehouseRack();
+                r.setId("R-" + String.format("%02d", i));
+                rackRepository.save(r);
+            }
+        }
         return rackRepository.findAll().stream().map(rack -> WarehouseRackDTO.builder()
                 .id(rack.getId())
                 .categoryId(rack.getCategory() != null ? rack.getCategory().getId() : null)
