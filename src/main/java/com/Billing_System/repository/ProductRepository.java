@@ -105,4 +105,12 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                "  GROUP BY p2.barcode HAVING COUNT(p2) > 1" +
                ") ORDER BY p.barcode, p.name")
         List<Product> findProductsWithDuplicateBarcodes();
+
+        @Query("SELECT new com.Billing_System.dto.DeadStockDTO(p.id, p.sku, p.name, c.name, p.currentStock, " +
+               "(SELECT MAX(si.salesInvoice.invoiceDate) FROM SaleItem si WHERE si.product.id = p.id), " +
+               "0L, " +
+               "(p.currentStock * p.purchaseRate)) " +
+               "FROM Product p LEFT JOIN p.category c " +
+               "WHERE p.currentStock > 0 AND p.isActive = true")
+        List<com.Billing_System.dto.DeadStockDTO> findProductsForDeadStockAnalysis();
 }

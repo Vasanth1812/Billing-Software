@@ -21,4 +21,11 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, UUID
 
     @Query("SELECT pi FROM PurchaseItem pi JOIN FETCH pi.product WHERE pi.product.id = :productId")
     List<PurchaseItem> findByProductId(@Param("productId") UUID productId);
+
+    @Query("SELECT pi.gstRate, SUM(pi.totalAmount), SUM(pi.gstAmount) " +
+           "FROM PurchaseItem pi JOIN pi.purchaseOrder po " +
+           "WHERE EXTRACT(MONTH FROM po.invoiceDate) = :month AND EXTRACT(YEAR FROM po.invoiceDate) = :year " +
+           "GROUP BY pi.gstRate " +
+           "ORDER BY pi.gstRate")
+    List<Object[]> findGstPurchaseSummary(@Param("month") int month, @Param("year") int year);
 }

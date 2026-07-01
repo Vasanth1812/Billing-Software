@@ -25,6 +25,10 @@ public class ReportService {
     private final com.Billing_System.repository.VendorInvoiceRepository vendorInvoiceRepository;
     private final com.Billing_System.repository.VendorPaymentRepository vendorPaymentRepository;
     private final com.Billing_System.vendor.repository.VendorRepository vendorRepository;
+    private final com.Billing_System.repository.StockLedgerRepository stockLedgerRepository;
+    private final com.Billing_System.repository.ProductRepository productRepository;
+    private final com.Billing_System.repository.SaleItemRepository saleItemRepository;
+    private final com.Billing_System.repository.PurchaseItemRepository purchaseItemRepository;
 
     @Transactional(readOnly = true)
     public GstSummaryDTO getGstSummary(LocalDate from, LocalDate to) {
@@ -154,6 +158,237 @@ public class ReportService {
                 .totalInputGst(BigDecimal.ZERO)
                 .netPayable(BigDecimal.ZERO)
                 .build();
+    }
+
+    // ===============================================================================
+    // STOCK MOVEMENT REPORT
+    // ===============================================================================
+    @Transactional(readOnly = true)
+    public List<StockMovementDTO> getStockMovementReport(LocalDate fromDate, LocalDate toDate, String search) {
+        java.time.LocalDateTime from = fromDate.atStartOfDay();
+        java.time.LocalDateTime to = toDate.atTime(23, 59, 59, 999999999);
+
+        List<com.Billing_System.entity.Product> allProducts = productRepository.findAll();
+        List<StockMovementDTO> results = new ArrayList<>();
+
+        for (com.Billing_System.entity.Product p : allProducts) {
+            String name = p.getName() != null ? p.getName().toLowerCase() : "";
+            String sku = p.getSku() != null ? p.getSku().toLowerCase() : "";
+            if (search != null && !search.isEmpty()) {
+                String q = search.toLowerCase();
+                if (!name.contains(q) && !sku.contains(q)) {
+                    continue;
+                }
+            }
+
+            BigDecimal opening = stockLedgerRepository.findLatestBalanceBefore(p.getId(), from)
+                    .orElse(BigDecimal.ZERO);
+
+            List<com.Billing_System.entity.StockLedger> movements = stockLedgerRepository.findByProductAndDateRange(p.getId(), from, to);
+
+            BigDecimal purchases = BigDecimal.ZERO;
+            BigDecimal sales = BigDecimal.ZERO;
+            BigDecimal returns = BigDecimal.ZERO;
+
+            for (com.Billing_System.entity.StockLedger sl : movements) {
+                if ("PURCHASE".equalsIgnoreCase(sl.getTransactionType())) {
+                    purchases = purchases.add(sl.getQuantityIn());
+                } else if ("SALE".equalsIgnoreCase(sl.getTransactionType())) {
+                    sales = sales.add(sl.getQuantityOut());
+                } else if ("RETURN".equalsIgnoreCase(sl.getTransactionType())) {
+                    returns = returns.add(sl.getQuantityIn());
+                } else if ("ADJUST".equalsIgnoreCase(sl.getTransactionType())) {
+                    if (sl.getQuantityIn().compareTo(BigDecimal.ZERO) > 0) {
+                        returns = returns.add(sl.getQuantityIn());
+                    } else if (sl.getQuantityOut().compareTo(BigDecimal.ZERO) > 0) {
+                        sales = sales.add(sl.getQuantityOut());
+                    }
+                }
+            }
+
+            BigDecimal closing = opening.add(purchases).add(returns).subtract(sales);
+
+            results.add(StockMovementDTO.builder()
+                    .id(p.getId())
+                    .sku(p.getSku())
+                    .name(p.getName())
+                    .opening(opening)
+                    .purchases(purchases)
+                    .sales(sales)
+                    .returns(returns)
+                    .closing(closing)
+                    .build());
+        }
+
+        return results;
+    }
+
+    // ===============================================================================
+    // FAST MOVING REPORT
+    // ===============================================================================
+    @Transactional(readOnly = true)
+    public List<FastMovingDTO> getFastMovingProducts(LocalDate fromDate, LocalDate toDate) {
+        List<FastMovingDTO> list = saleItemRepository.findFastMovingProducts(fromDate, toDate);
+        long days = java.time.temporal.ChronoUnit.DAYS.between(fromDate, toDate) + 1; 
+        int rank = 1;
+        for (FastMovingDTO dto : list) {
+            dto.setRank(rank++);
+            if (days > 0 && dto.getUnitsSold() != null) {
+                dto.setAvgDailySales(dto.getUnitsSold().divide(new BigDecimal(days), 1, RoundingMode.HALF_UP));
+            } else {
+                dto.setAvgDailySales(BigDecimal.ZERO);
+            }
+        }
+        return list;
+    }
+
+    // ===============================================================================
+    // DEAD STOCK REPORT
+    // ===============================================================================
+    @Transactional(readOnly = true)
+    public List<DeadStockDTO> getDeadStockProducts(int daysThreshold) {
+        List<DeadStockDTO> allItems = productRepository.findProductsForDeadStockAnalysis();
+        List<DeadStockDTO> result = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+
+        for (DeadStockDTO dto : allItems) {
+            long daysIdle;
+            if (dto.getLastSale() == null) {
+                // If never sold, consider it dead stock for a very long time
+                daysIdle = 9999;
+            } else {
+                daysIdle = java.time.temporal.ChronoUnit.DAYS.between(dto.getLastSale(), today);
+            }
+
+            if (daysIdle >= daysThreshold) {
+                dto.setDaysSinceLastSale(daysIdle);
+                if (dto.getValue() == null) dto.setValue(BigDecimal.ZERO);
+                result.add(dto);
+            }
+        }
+        return result;
+    }
+
+    // ===============================================================================
+    // PROFIT MARGIN REPORT
+    // ===============================================================================
+    @Transactional(readOnly = true)
+    public List<ProfitMarginDTO> getProfitMarginAnalysis(LocalDate fromDate, LocalDate toDate) {
+        List<ProfitMarginDTO> list = saleItemRepository.findProfitMarginAnalysis(fromDate, toDate);
+
+        for (ProfitMarginDTO dto : list) {
+            BigDecimal revenue = dto.getRevenue() != null ? dto.getRevenue() : BigDecimal.ZERO;
+            BigDecimal cogs = dto.getCogs() != null ? dto.getCogs() : BigDecimal.ZERO;
+            
+            BigDecimal profit = revenue.subtract(cogs);
+            dto.setProfit(profit);
+
+            if (revenue.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal margin = profit.divide(revenue, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+                dto.setMargin(margin);
+            } else {
+                dto.setMargin(BigDecimal.ZERO);
+            }
+        }
+        return list;
+    }
+
+    // ===============================================================================
+    // SUPPLIER PURCHASE REPORT
+    // ===============================================================================
+    @Transactional(readOnly = true)
+    public List<SupplierPurchaseDTO> getSupplierPurchases(LocalDate fromDate, LocalDate toDate, String supplierName) {
+        List<PurchaseOrder> pos = purchaseOrderRepository.findByDateRange(fromDate, toDate);
+        List<SupplierPurchaseDTO> result = new ArrayList<>();
+
+        for (PurchaseOrder po : pos) {
+            String name = po.getVendor() != null ? po.getVendor().getLegalName() : "Unknown";
+            if (supplierName != null && !supplierName.trim().isEmpty() && !supplierName.equalsIgnoreCase("All")) {
+                if (!name.equalsIgnoreCase(supplierName.trim())) {
+                    continue; // Skip if it doesn't match filter
+                }
+            }
+
+            BigDecimal gross = po.getTotalAmount() != null ? po.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal tax = po.getGstAmount() != null ? po.getGstAmount() : BigDecimal.ZERO;
+            BigDecimal net = po.getGrandTotal() != null ? po.getGrandTotal() : BigDecimal.ZERO;
+            int items = po.getItems() != null ? po.getItems().size() : 0;
+
+            result.add(SupplierPurchaseDTO.builder()
+                    .id(po.getId())
+                    .supplier(name)
+                    .date(po.getInvoiceDate() != null ? po.getInvoiceDate() : po.getCreatedAt().toLocalDate())
+                    .invoiceNo(po.getInvoiceNumber() != null ? po.getInvoiceNumber() : "N/A")
+                    .items(items)
+                    .gross(gross)
+                    .tax(tax)
+                    .net(net)
+                    .build());
+        }
+        return result;
+    }
+
+    // ===============================================================================
+    // GST REPORTS
+    // ===============================================================================
+    @Transactional(readOnly = true)
+    public List<GstReportDTO> getGstSales(int month, int year) {
+        List<Object[]> results = saleItemRepository.findGstSalesSummary(month, year);
+        return mapGstResults(results, true);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GstReportDTO> getGstPurchases(int month, int year) {
+        List<Object[]> results = purchaseItemRepository.findGstPurchaseSummary(month, year);
+        return mapGstResults(results, false);
+    }
+
+    private List<GstReportDTO> mapGstResults(List<Object[]> results, boolean isSales) {
+        List<GstReportDTO> list = new ArrayList<>();
+        
+        // Ensure standard slabs exist even if zero
+        Map<String, GstReportDTO> slabMap = new LinkedHashMap<>();
+        for (String slab : new String[]{"0%", "5%", "12%", "18%", "28%"}) {
+            slabMap.put(slab, GstReportDTO.builder()
+                .slab(slab)
+                .taxableAmt(BigDecimal.ZERO)
+                .cgst(BigDecimal.ZERO)
+                .sgst(BigDecimal.ZERO)
+                .igst(BigDecimal.ZERO)
+                .totalTax(BigDecimal.ZERO)
+                .netSale(BigDecimal.ZERO)
+                .itc(BigDecimal.ZERO)
+                .build());
+        }
+
+        for (Object[] row : results) {
+            BigDecimal gstRate = row[0] != null ? (BigDecimal) row[0] : BigDecimal.ZERO;
+            BigDecimal netAmount = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+            BigDecimal gstAmount = row[2] != null ? (BigDecimal) row[2] : BigDecimal.ZERO;
+
+            String slab = gstRate.setScale(0, RoundingMode.HALF_UP).toString() + "%";
+            
+            BigDecimal taxable = netAmount.subtract(gstAmount);
+            BigDecimal halfTax = gstAmount.divide(new BigDecimal("2"), 2, RoundingMode.HALF_UP);
+
+            GstReportDTO dto = slabMap.getOrDefault(slab, GstReportDTO.builder().slab(slab).build());
+            dto.setTaxableAmt(dto.getTaxableAmt() == null ? taxable : dto.getTaxableAmt().add(taxable));
+            dto.setCgst(dto.getCgst() == null ? halfTax : dto.getCgst().add(halfTax));
+            dto.setSgst(dto.getSgst() == null ? halfTax : dto.getSgst().add(halfTax));
+            dto.setIgst(BigDecimal.ZERO);
+            dto.setTotalTax(dto.getTotalTax() == null ? gstAmount : dto.getTotalTax().add(gstAmount));
+
+            if (isSales) {
+                dto.setNetSale(dto.getNetSale() == null ? netAmount : dto.getNetSale().add(netAmount));
+                dto.setItc(BigDecimal.ZERO);
+            } else {
+                dto.setItc(dto.getItc() == null ? gstAmount : dto.getItc().add(gstAmount));
+                dto.setNetSale(BigDecimal.ZERO);
+            }
+            slabMap.put(slab, dto);
+        }
+
+        return new ArrayList<>(slabMap.values());
     }
 
     // ===============================================================================

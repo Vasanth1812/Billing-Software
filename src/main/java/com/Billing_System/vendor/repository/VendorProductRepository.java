@@ -28,6 +28,8 @@ public interface VendorProductRepository extends JpaRepository<VendorProduct, UU
     /** All vendor products mapped to a specific store product */
     List<VendorProduct> findByMappedProductId(UUID productId);
 
+    List<VendorProduct> findByMappedProductIdIn(List<UUID> productIds);
+
     /** Count products per vendor — for stats */
     long countByVendorId(UUID vendorId);
 

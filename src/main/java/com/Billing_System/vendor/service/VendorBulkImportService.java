@@ -132,6 +132,44 @@ public class VendorBulkImportService {
                 throw new IllegalArgumentException("Excel file has no data rows. Add product data from row 4 onwards.");
             }
 
+            // --- PHASE 1: Pre-process Categories to avoid N+1 queries ---
+            Set<String> uniqueCategoryNames = new HashSet<>();
+            for (int rowIdx = DATA_START_ROW; rowIdx <= lastRowNum; rowIdx++) {
+                Row row = sheet.getRow(rowIdx);
+                if (row == null || isRowEmpty(row)) continue;
+                String category = getCellString(row, COL_CATEGORY);
+                if (category != null && !category.isBlank()) {
+                    uniqueCategoryNames.add(category.trim());
+                }
+            }
+
+            Map<String, com.Billing_System.vendor.entity.VendorCategory> categoryCache = new HashMap<>();
+            if (!uniqueCategoryNames.isEmpty()) {
+                // Fetch all existing in one query
+                Set<String> lowerCaseNames = uniqueCategoryNames.stream().map(String::toLowerCase).collect(java.util.stream.Collectors.toSet());
+                List<com.Billing_System.vendor.entity.VendorCategory> existingCategories = 
+                    vendorCategoryRepository.findByNameInIgnoreCase(lowerCaseNames);
+                existingCategories.forEach(cat -> categoryCache.put(cat.getName().toLowerCase(), cat));
+
+                // Find missing and create them in bulk
+                List<com.Billing_System.vendor.entity.VendorCategory> newCategories = new ArrayList<>();
+                for (String name : uniqueCategoryNames) {
+                    if (!categoryCache.containsKey(name.toLowerCase())) {
+                        newCategories.add(com.Billing_System.vendor.entity.VendorCategory.builder()
+                                .name(name)
+                                .color("slate")
+                                .build());
+                    }
+                }
+
+                if (!newCategories.isEmpty()) {
+                    log.info("Bulk importing {} new vendor categories", newCategories.size());
+                    List<com.Billing_System.vendor.entity.VendorCategory> savedCategories = vendorCategoryRepository.saveAll(newCategories);
+                    savedCategories.forEach(cat -> categoryCache.put(cat.getName().toLowerCase(), cat));
+                }
+            }
+            // --- END PHASE 1 ---
+
             int dataRows = lastRowNum - DATA_START_ROW + 1;
             if (dataRows > MAX_ROWS) {
                 throw new IllegalArgumentException(
@@ -234,19 +272,7 @@ public class VendorBulkImportService {
                         }
                     }
 
-                    // --- Upsert Category if it exists ---
-                    if (category != null && !category.isBlank()) {
-                        String catTrimmed = category.trim();
-                        // Find or create category
-                        if (vendorCategoryRepository.findByNameIgnoreCase(catTrimmed).isEmpty()) {
-                            com.Billing_System.vendor.entity.VendorCategory newCat = 
-                                com.Billing_System.vendor.entity.VendorCategory.builder()
-                                    .name(catTrimmed)
-                                    .color("slate")
-                                    .build();
-                            vendorCategoryRepository.save(newCat);
-                        }
-                    }
+                    // --- (Categories were handled in Phase 1) ---
 
                     // ── Upsert: update if exists, insert if new ───────────────
                     Optional<VendorProduct> existing =

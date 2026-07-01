@@ -4,10 +4,14 @@ import com.Billing_System.vendor.entity.VendorCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface VendorCategoryRepository extends JpaRepository<VendorCategory, UUID> {
     Optional<VendorCategory> findByNameIgnoreCase(String name);
+    
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM VendorCategory c WHERE LOWER(c.name) IN :names")
+    List<VendorCategory> findByNameInIgnoreCase(@org.springframework.data.repository.query.Param("names") java.util.Collection<String> names);
 }

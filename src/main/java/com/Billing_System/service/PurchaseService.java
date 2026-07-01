@@ -230,6 +230,42 @@ public class PurchaseService {
         }
 
         PurchaseOrder savedOrder = purchaseOrderRepository.save(order);
+
+        // 6. INCREASE product current_stock by purchased quantity
+        // 7. Record stock_ledger entry for each item
+        List<Product> productsToUpdate = new ArrayList<>();
+        List<StockLedger> ledgerEntries = new ArrayList<>();
+
+        for (PurchaseItem item : lineItems) {
+            Product prod = item.getProduct();
+            if (prod != null) {
+                BigDecimal qtyIn = item.getQuantity();
+                BigDecimal currentStock = prod.getCurrentStock() != null ? prod.getCurrentStock() : BigDecimal.ZERO;
+                BigDecimal newStock = currentStock.add(qtyIn);
+                prod.setCurrentStock(newStock);
+                productsToUpdate.add(prod);
+
+                StockLedger ledger = StockLedger.builder()
+                        .product(prod)
+                        .transactionType("PURCHASE")
+                        .referenceId(savedOrder.getId())
+                        .quantityIn(qtyIn)
+                        .quantityOut(BigDecimal.ZERO)
+                        .balanceStock(newStock)
+                        .transactionDate(savedOrder.getCreatedAt() != null ? savedOrder.getCreatedAt() : LocalDateTime.now())
+                        .reason("Purchase Order " + savedOrder.getInvoiceNumber())
+                        .build();
+                ledgerEntries.add(ledger);
+            }
+        }
+        
+        if (!productsToUpdate.isEmpty()) {
+            productRepository.saveAll(productsToUpdate);
+        }
+        if (!ledgerEntries.isEmpty()) {
+            stockLedgerRepository.saveAll(ledgerEntries);
+        }
+
         return savedOrder;
     }
 

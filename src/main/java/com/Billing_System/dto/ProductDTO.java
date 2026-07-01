@@ -19,7 +19,8 @@ public class ProductDTO {
     private String sku;
 
     private UUID categoryId;
-
+    
+    private String categoryName;
     /** Primary supplier UUID — for traceability. Optional but strongly recommended. */
     private UUID primarySupplierId;
 

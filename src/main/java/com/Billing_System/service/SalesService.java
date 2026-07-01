@@ -4,6 +4,8 @@ import com.Billing_System.dto.SaleRequestDTO;
 import com.Billing_System.dto.SalesInvoiceResponseDTO;
 import com.Billing_System.entity.*;
 import com.Billing_System.repository.*;
+import com.Billing_System.vendor.entity.VendorProduct;
+import com.Billing_System.vendor.repository.VendorProductRepository;
 import com.Billing_System.util.InvoiceNumberGenerator;
 import com.Billing_System.util.TaxCalculator;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class SalesService {
     private final SaleItemRepository saleItemRepository;
     private final ProductRepository productRepository;
     private final StockLedgerRepository stockLedgerRepository;
+    private final VendorProductRepository vendorProductRepository;
     private final TaxCalculator taxCalculator;
     private final InvoiceNumberGenerator invoiceNumberGenerator;
 
@@ -68,9 +71,15 @@ public class SalesService {
                 .map(SaleRequestDTO.SaleItemDTO::getProductId)
                 .collect(Collectors.toList());
 
-        Map<UUID, Product> productMap = productRepository.findAllById(productIds)
+        Map<UUID, Product> productMap = productRepository.findAllByIdWithCategory(productIds)
                 .stream()
                 .collect(Collectors.toMap(Product::getId, Function.identity()));
+
+        // Batch-load mapped vendor products to decrease their stock as well
+        Map<UUID, List<VendorProduct>> vendorProductMap = vendorProductRepository.findByMappedProductIdIn(productIds)
+                .stream()
+                .filter(vp -> vp.getMappedProductId() != null)
+                .collect(Collectors.groupingBy(VendorProduct::getMappedProductId));
 
         // Step 2: Validate stock availability – reads from in-memory map, NO extra DB
         // calls
@@ -177,6 +186,33 @@ public class SalesService {
                     .transactionDate(LocalDateTime.now())
                     .build();
             stockLedgerRepository.save(ledger);
+
+            // Decrease stock in vendor_products table
+            List<VendorProduct> mappedVendorProducts = vendorProductMap.getOrDefault(product.getId(), Collections.emptyList());
+            BigDecimal remainingSaleQty = item.getQuantity();
+
+            for (VendorProduct vp : mappedVendorProducts) {
+                if (remainingSaleQty.compareTo(BigDecimal.ZERO) <= 0) break;
+                
+                BigDecimal deductQty = remainingSaleQty;
+                if (vp.getCurrentStock().compareTo(deductQty) < 0) {
+                    deductQty = vp.getCurrentStock();
+                }
+                
+                if (deductQty.compareTo(BigDecimal.ZERO) > 0) {
+                    vp.setCurrentStock(vp.getCurrentStock().subtract(deductQty));
+                    vendorProductRepository.save(vp);
+                    remainingSaleQty = remainingSaleQty.subtract(deductQty);
+                }
+            }
+
+            // If there's still sale qty remaining (e.g. vendor stock was 0 but store stock was 5), 
+            // deduct it from the first vendor product anyway to keep totals matching if possible
+            if (remainingSaleQty.compareTo(BigDecimal.ZERO) > 0 && !mappedVendorProducts.isEmpty()) {
+                VendorProduct firstVp = mappedVendorProducts.get(0);
+                firstVp.setCurrentStock(firstVp.getCurrentStock().subtract(remainingSaleQty));
+                vendorProductRepository.save(firstVp);
+            }
         }
 
         return savedInvoice;

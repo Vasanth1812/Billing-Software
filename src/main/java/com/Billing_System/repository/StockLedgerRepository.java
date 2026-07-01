@@ -35,4 +35,11 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, UUID> 
             @Param("productId") UUID productId,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    @Query("SELECT sl.balanceStock FROM StockLedger sl " +
+           "WHERE sl.product.id = :productId AND sl.transactionDate < :fromDate " +
+           "ORDER BY sl.transactionDate DESC LIMIT 1")
+    java.util.Optional<java.math.BigDecimal> findLatestBalanceBefore(
+            @Param("productId") UUID productId,
+            @Param("fromDate") LocalDateTime fromDate);
 }

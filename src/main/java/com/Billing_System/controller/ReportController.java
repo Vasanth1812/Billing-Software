@@ -55,6 +55,56 @@ public class ReportController {
     // NEW — REPORTS HUB ENDPOINTS
     // ═══════════════════════════════════════════════════════════════════════════════
 
+    @GetMapping("/stock-movement")
+    public ResponseEntity<List<StockMovementDTO>> getStockMovement(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(reportService.getStockMovementReport(from, to, search));
+    }
+
+    @GetMapping("/fast-moving")
+    public ResponseEntity<List<FastMovingDTO>> getFastMovingProducts(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(reportService.getFastMovingProducts(from, to));
+    }
+
+    @GetMapping("/dead-stock")
+    public ResponseEntity<List<DeadStockDTO>> getDeadStockProducts(
+            @RequestParam(defaultValue = "30") int daysThreshold) {
+        return ResponseEntity.ok(reportService.getDeadStockProducts(daysThreshold));
+    }
+
+    @GetMapping("/profit-margin")
+    public ResponseEntity<List<ProfitMarginDTO>> getProfitMarginProducts(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(reportService.getProfitMarginAnalysis(from, to));
+    }
+
+    @GetMapping("/supplier-purchase")
+    public ResponseEntity<List<SupplierPurchaseDTO>> getSupplierPurchases(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String supplier) {
+        return ResponseEntity.ok(reportService.getSupplierPurchases(from, to, supplier));
+    }
+
+    @GetMapping("/gst-sales")
+    public ResponseEntity<List<GstReportDTO>> getGstSales(
+            @RequestParam int month,
+            @RequestParam int year) {
+        return ResponseEntity.ok(reportService.getGstSales(month, year));
+    }
+
+    @GetMapping("/gst-purchases")
+    public ResponseEntity<List<GstReportDTO>> getGstPurchases(
+            @RequestParam int month,
+            @RequestParam int year) {
+        return ResponseEntity.ok(reportService.getGstPurchases(month, year));
+    }
+
     /**
      * GET /api/reports/catalog
      * Returns the list of all report types with their available filters and export formats.

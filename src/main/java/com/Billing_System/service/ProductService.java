@@ -75,7 +75,7 @@ public class ProductService {
             throw new IllegalArgumentException("Product with SKU '" + dto.getSku() + "' already exists");
         }
 
-        Category category = resolveCategory(dto.getCategoryId());
+        Category category = resolveCategory(dto);
         Supplier primarySupplier = resolvePrimarySupplier(dto.getPrimarySupplierId());
 
         Product freeProduct = null;
@@ -116,7 +116,7 @@ public class ProductService {
 
         product.setName(dto.getName());
         product.setSku(dto.getSku());
-        product.setCategory(resolveCategory(dto.getCategoryId()));
+        product.setCategory(resolveCategory(dto));
         product.setPrimarySupplier(resolvePrimarySupplier(dto.getPrimarySupplierId()));
         product.setUnit(dto.getUnit());
         product.setPurchaseRate(dto.getPurchaseRate());
@@ -144,10 +144,15 @@ public class ProductService {
 
     // ─── Private Helpers ────────────────────────────────────────────────────────
 
-    private Category resolveCategory(UUID categoryId) {
-        if (categoryId == null) return null;
-        return categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+    private Category resolveCategory(ProductDTO dto) {
+        if (dto.getCategoryName() != null && !dto.getCategoryName().isBlank()) {
+            String name = dto.getCategoryName().trim();
+            return categoryRepository.findByNameIgnoreCase(name)
+                    .orElseGet(() -> categoryRepository.save(Category.builder().name(name).build()));
+        }
+        if (dto.getCategoryId() == null) return null;
+        return categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + dto.getCategoryId()));
     }
 
     private Supplier resolvePrimarySupplier(UUID supplierId) {
